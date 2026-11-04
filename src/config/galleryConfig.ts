@@ -31,8 +31,8 @@ export const galleryConfig: GalleryConfig = {
 			location: "崩坏：星穹铁道",
 			date: "2026-02-01",
 			tags: ["加密相册", "示例"],
-			password: "123456",
-			passwordHint: "示例密码123456",
+			password: "aB349465*",
+			passwordHint: "示例密码aB349465*",
 		},
 	],
 
