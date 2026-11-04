@@ -1,0 +1,8 @@
+name = "firefly"
+compatibility_date = "2026-11-03" 
+
+[asstes]
+directory = "./dist"
+
+[vars]
+MDDE_VERSION = "22"
