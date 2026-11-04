@@ -16,6 +16,14 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 	// 主页
 	links.push(LinkPresets.Home);
 
+	// 周报
+	links.push({
+    name: "周报",
+    url: "/series/",
+    icon: "material-symbols:calendar-today",
+	});
+
+
 	// 文章及其子菜单
 	links.push({
 		name: "文章",
