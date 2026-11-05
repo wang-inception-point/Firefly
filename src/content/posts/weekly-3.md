@@ -2,6 +2,8 @@
 title: "2026年11月第1周周报"
 date: 2026-11-07
 published: 2026-11-07
+description: "本周 CTF Web 刷题记录：CTFshow SQL 注入 171–173 题、ctf+ 平台 RCE 与反序列化 5 题、Geek 平台保卫玉米与 ezpop 等 5 题，含完整解题思路与 payload 复盘。"
+category: "学习记录"
 series: "周报"
 seriesOrder: 1
 tags: [周报]
@@ -9,7 +11,7 @@ tags: [周报]
 
 ## 本周总结
 
-（在这里写你的周报内容）
+本周主要围绕 CTF Web 方向展开：完成 CTFshow SQL 注入 171–173 题，ctf+ 平台 5 道（RCE 命令执行、代码执行、Token 验证、反序列化等），以及 Geek 平台 5 道（保卫玉米、ezphp、术之尽头、丹特丽安の書架藏书检索、ezpop）。每道题都整理了思路、payload 和踩坑记录，方便后续复盘。
 # php学习文档&&wp
 
 ***
