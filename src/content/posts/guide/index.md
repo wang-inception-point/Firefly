@@ -1,6 +1,6 @@
 ---
 title: Firefly 简单使用指南
-published: 1970-01-02
+published: 2026-11-04
 pinned: true
 description: "如何使用 Firefly 博客模板。"
 image: "./cover.avif"
@@ -19,7 +19,7 @@ seriesOrder: 1
 ```yaml
 ---
 title: 我的第一篇博客文章
-published: 2023-09-09
+published: 2026-11-04
 description: 这是我新 Astro 博客的第一篇文章。
 image: ./cover.jpg
 tags: [前端, 开发]
@@ -99,7 +99,7 @@ URL：`/posts/hello-world`
 ```yaml
 ---
 title: 如何使用 Firefly 博客主题
-published: 2023-09-09
+published: 2026-11-04
 slug: how-to-use-firefly-blog-theme
 ---
 ```

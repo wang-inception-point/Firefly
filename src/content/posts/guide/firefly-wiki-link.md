@@ -1,6 +1,6 @@
 ---
 title: Firefly Wiki Link 内部链接示例
-published: 1970-01-03
+published: 2026-11-04
 description: 在 Firefly 文章中使用 Obsidian 风格的 Wiki Link 内部链接，并自动生成文章链接卡片。
 image: ""
 tags: [Markdown, Obsidian, Wiki-Link, 文章示例]
@@ -16,7 +16,7 @@ Firefly 支持在 Markdown、MDX 文章中使用 Obsidian 风格的 Wiki Link �
 
 `[[slug]]` 单独成段时，会自动读取目标文章的标题、描述、发布时间、分类、标签和封面，渲染为链接卡片：
 
-```markdown
+//```markdown
 [[firefly]]
 
 [[guide/index]]
@@ -24,35 +24,35 @@ Firefly 支持在 Markdown、MDX 文章中使用 Obsidian 风格的 Wiki Link �
 [[markdown-extended]]
 ```
 
-[[firefly]]
+//[[firefly]]
 
-[[guide/index]]
+//[[guide/index]]
 
-[[markdown-extended]]
+//[[markdown-extended]]
 
-## 行内链接
+//## 行内链接
 
-`[[slug]]` 出现在正文中间时，渲染为普通链接，链接文字自动使用目标文章的标题
+//`[[slug]]` 出现在正文中间时，渲染为普通链接，链接文字自动使用目标文章的标题
 
-```markdown
-请参阅 [[firefly]] 了解主题特性。
+//```markdown
+//请参阅 [[firefly]] 了解主题特性。
 ```
 
-请参阅 [[firefly]] 了解主题特性。
+//请参阅 [[firefly]] 了解主题特性。
 
 ## 自定义显示标题
 
 在 `|` 后填写链接的显示文字。行内链接会用它替换文章标题；单独成段时依然渲染为卡片，卡片标题使用自定义文字，描述、时间、分类、标签和封面仍然读取目标文章：
 
 ```markdown
-请参阅 [[firefly|主题介绍]] 了解主题特性。
+//请参阅 [[firefly|主题介绍]] 了解主题特性。
 
-[[firefly|Firefly 主题介绍]]
+//[[firefly|Firefly 主题介绍]]
 ```
 
-请参阅 [[firefly|主题介绍]] 了解主题特性。
+//请参阅 [[firefly|主题介绍]] 了解主题特性。
 
-[[firefly|Firefly 主题介绍]]
+//[[firefly|Firefly 主题介绍]]
 
 一个例外：如果 `|` 后的文字只是把链接目标又抄了一遍（`[[guide/index|index]]`），会被当作无效别名忽略，仍然显示文章标题。Obsidian 在插入的链接时会自动补上这样的别名，避免笔记里显示一长串路径，这个例外就是为它准备的。
 
