@@ -1,6 +1,7 @@
 ---
 title: "2026年11月第1周周报"
 date: 2026-11-07
+published: 2026-11-07
 series: "周报"
 seriesOrder: 1
 tags: [周报]
