@@ -506,9 +506,9 @@ fetch
 
 ## 一.保卫玉米
 ### 1.解读
-![](<屏幕截图 2026-10-26 195717.png>)
+![](./images/weekly/screenshot-195717.png)
 <font color="red">因为由题可知method(请求方式为GET，又知道只有登记为厨师才能发出接入请求，所以直接在URL拼接/?name=cornguard，登录厨师账号)</font>
-![alt text](<屏幕截图 2026-10-26 200033.png>)
+![alt text](./images/weekly/screenshot-200033.png)
 
 ### 2.尝试发送
 构造post请求(用浏览器自带的控制台)
@@ -561,10 +561,10 @@ action=join&name=cornguard
 ### 3.好处析：
 <font color="red">不用找cookie用控制台且会自动带上一些请求头。</font>
 输入后
-![alt text](<屏幕截图 2026-10-26 201435.png>)
+![alt text](./images/weekly/screenshot-201435.png)
 得到需用专用浏览器：Corn Terminal
 这时要构建UA请求头，可以用浏览器插件Mod
-![alt text](<屏幕截图 2026-10-26 200039.png>)
+![alt text](./images/weekly/screenshot-200039.png)
 构造好后再次发送上面的post请求，得到；
 ![alt text](./images/weekly/image-11.png)
 可以提取到游戏文件源码： src="/static/game.js">，在网页地址后拼接/static/game.js进行查询源码获取游戏过程和接口。
@@ -805,7 +805,7 @@ fetch('/death.php?filename=php://filter/write=convert.base64-decode/resource=she
 ```
 
 ### 4.得出flag
-![](<屏幕截图 2026-10-27 202325.png>)
+![](./images/weekly/screenshot-202325.png)
 
 **要写.php 文件后缀，服务器才会执行里面的 PHP 代码**。
 
