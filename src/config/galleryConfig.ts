@@ -34,6 +34,17 @@ export const galleryConfig: GalleryConfig = {
 			password: "aB349465*",
 			//passwordHint: "示例密码aB349465*",
 		},
+		{
+			id: "wo-ya-ni-sha",
+			name: "沃雅泥莎",
+			description: "去水印清晰版合集",
+			location: "崩坏：星穹铁道",
+			date: "2026-11-05",
+			tags: ["崩坏星穹铁道", "沃雅泥莎"],
+			password: "aB349465*",
+			//passwordHint: "密码提示（可选）",
+		},
+
 	],
 
 	// 瀑布流最小列宽(px)，浏览器根据容器宽度自动计算列数，默认 240
