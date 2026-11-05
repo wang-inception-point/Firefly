@@ -1,8 +1,20 @@
 {
+	// 项目名
 	"name": "firefly",
-	"compatibility_date": "2025-01-01",
+	"compatibility_date": "2026-11-03",
 	"compatibility_flags": ["nodejs_compat"],
+
+	// 门卫脚本：所有请求先经过 worker 校验密码
+	"main": "worker/basic-auth.js",
+
 	"assets": {
-		"directory": "./dist"
+		"directory": "./dist",
+		"binding": "ASSETS",
+		// 关键：让 worker 先执行，而不是静态文件优先
+		"run_worker_first": true
+	},
+
+	"vars": {
+		"MDDE_VERSION": "22"
 	}
 }
