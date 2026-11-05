@@ -1502,3 +1502,80 @@ include 日志，PHP 遇到 <?...?> 执行
 #### 没绷住(<font color="red">证明80题可能有其他解法</font>）
 
 ##### 1.例如在url让include包含有php代码文件，我尝试一下
+
+## 82题
+### 1.源码
+![alt text](image-1.png)
+##### 1.解析
+“.”被过滤了则之前的fl0g.ph?与日志包含都不能用了
+想到可以用
+### 2.session文件
+#### 一、Session 文件基础
+
+- **命名**：`sess_<PHPSESSID>`，PHPSESSID 由 Cookie 控制，可自定义
+- **无后缀**：路径里没有点，能绕过点过滤
+- **路径**：
+  - `/tmp/sess_xxx`
+  - `/var/lib/php/sessions/sess_xxx`
+- **内容**：序列化后的 `$_SESSION` 数据，形如 `变量名|值`
+
+#### 二、用法 1：Session 文件包含（最直接）
+
+**条件**：代码里能把可控数据写进 `$_SESSION`，同时存在 LFI。
+
+最小示例：
+
+```
+session_start();
+$_SESSION['username'] = $_GET['username'];  // 可控
+include($_GET['file']);
+```
+
+操作：
+
+1. 让 `username=<?=system('base64 fl0g.ph?');?>`，写进 session
+2. include `/tmp/sess_<你的PHPSESSID>`，执行代码
+
+#### 三、用法 2：session.upload_progress 注入（本题用法）
+
+**条件**：没有代码控制点、没有上传表单时，靠 PHP 默认功能 "无中生有"。
+
+- 发 multipart 上传 POST，带字段 `PHP_SESSION_UPLOAD_PROGRESS=代码`
+- PHP 自动把代码写进 session 文件
+- 因 `cleanup=On`，上传完即清除 → **必须条件竞争**（一边持续上传，一边频繁 include）
+
+#### 四、用法 3：Session 反序列化
+
+**条件**：存储和读取用了不同的序列化引擎（引擎不一致）。
+
+三种引擎：
+
+表格
+
+| 引擎 | 存储格式 |  |
+| --- | --- | --- |
+| `php` | ` 键名 | 序列化值 `（用竖线分隔） |
+| `php_binary` | 长度 + 键名 + 值 |  |
+| `php_serialize` | 整体标准序列化 `a:{...}` |  |
+
+> 
+> 当写入用 `php_serialize`、读取用 `php` 时，竖线 `|` 的解析差异可注入恶意序列化数据，触发反序列化（配合魔术方法）。
+
+#### 五、三类用法对比
+
+表格
+
+| 用法 | 触发条件 | 是否需要竞争 |
+| --- | --- | --- |
+| 直接文件包含 | 代码有 `$_SESSION = 可控值` + LFI | 否 |
+| upload_progress | 无控制点，靠默认上传功能 | **是**（cleanup=on） |
+| 反序列化 | 序列化引擎不一致 | 否 |
+
+#### 六、本题对应
+
+这道 web82 属于**用法 2**：没有上传点、没有 session 赋值点，只能用 `session.upload_progress` 配合条件竞争，把代码写进无后缀的 session 文件再 include。
+
+#### 一句话总结
+
+> 
+> Session 文件三大用法：**① 可控 session 直接包含、② 用 upload_progress 无中生有注入并竞争、③ 引擎不一致做反序列化**；本题走第二种，核心是 "无后缀绕点过滤 + 竞争抢在清理前执行"。
