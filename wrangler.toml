@@ -1,8 +1,11 @@
 name = "firefly"
-compatibility_date = "2026-11-03" 
+compatibility_date = "2026-11-03"
+main = "worker/basic-auth.js"
 
-[asstes]
+[assets]
 directory = "./dist"
+binding = "ASSETS"
 
 [vars]
 MDDE_VERSION = "22"
+~
