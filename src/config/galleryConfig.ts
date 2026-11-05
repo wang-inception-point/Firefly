@@ -40,7 +40,7 @@ export const galleryConfig: GalleryConfig = {
 			description: "cute",
 			location: "原神",
 			date: "2026-11-05",
-			tags: ["原神", "沃雅泥莎"],
+			tags: ["原神", "沃雅妮莎"],
 			password: "aB349465*",
 			//passwordHint: "密码提示（可选）",
 		},
