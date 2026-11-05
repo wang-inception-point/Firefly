@@ -37,7 +37,7 @@ export const galleryConfig: GalleryConfig = {
 		{
 			id: "wo-ya-ni-sha",
 			name: "沃雅妮莎",
-			description: "cute",
+			description: "It's cute",
 			location: "原神",
 			date: "2026-11-05",
 			tags: ["原神", "沃雅妮莎"],
