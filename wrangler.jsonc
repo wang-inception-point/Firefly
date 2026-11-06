@@ -16,5 +16,13 @@
 
 	"vars": {
 		"MDDE_VERSION": "22"
-	}
+	},
+
+	// KV 数据库：存储访客记录与总进站次数
+	"kv_namespaces": [
+		{
+			"binding": "FF_DATA",
+			"id": "e272a77003c5453e9fd69840236e8690"
+		}
+	]
 }
