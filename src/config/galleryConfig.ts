@@ -20,7 +20,7 @@ export const galleryConfig: GalleryConfig = {
 			name: "可爱流萤",
 			description: "飞萤之火自无梦的长夜亮起，绽放在终竟的明天。",
 			location: "崩坏：星穹铁道",
-			date: "2026-01-01",
+			date: "2026-11-04",
 			tags: ["崩坏星穹铁道", "流萤"],
 		},
 		{
@@ -37,7 +37,7 @@ export const galleryConfig: GalleryConfig = {
 		{
 			id: "wo-ya-ni-sha",
 			name: "沃雅妮莎",
-			description: "It's cute",
+			description: "沃真vary cute",
 			location: "原神",
 			date: "2026-11-05",
 			tags: ["原神", "沃雅妮莎"],
