@@ -17,43 +17,91 @@ const PROVINCE_CODES = {
   64: "宁夏", 65: "新疆", 71: "台湾", 81: "香港", 82: "澳门",
 };
 
-// 登录地点：主用太平洋 IP 库（中文、可到区县），失败降级 Cloudflare 原生头（省+市）
-// 只返回翻译后的中文地名，不返回、不存储 IP
-async function geoLocate(request, ip) {
-  const fallback = () => ({
-    province: PROVINCE_CODES[request.headers.get("CF-IPRegion")] || "",
-    city: request.headers.get("CF-IPCity") || "",
-    district: "",
-  });
-
-  // 仅允许合法 IP 字符进入 URL，防注入
-  if (!/^[0-9a-fA-F:.]+$/.test(ip)) return fallback();
-
+// 带超时的 fetch，任何异常返回 null（不阻断登录主流程）
+async function fetchGeo(url, opts = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), GEO_TIMEOUT);
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), GEO_TIMEOUT);
-    const resp = await fetch(
-      `https://whois.pconline.com.cn/ipJson.jsp?ip=${ip}&json=true`,
-      { signal: ctrl.signal, headers: { Accept: "application/json" } },
-    );
+    const resp = await fetch(url, { signal: ctrl.signal, ...opts });
+    return resp.ok ? resp : null;
+  } catch {
+    return null;
+  } finally {
     clearTimeout(timer);
-    if (!resp.ok) return fallback();
-    let text;
-    try {
-      text = new TextDecoder("gbk").decode(await resp.arrayBuffer());
-    } catch {
-      return fallback(); // 运行环境不支持 GBK 解码时降级
-    }
+  }
+}
+
+// 源1：ip9 —— IPv4/IPv6 都支持，HTTPS 中文，省+市
+async function fromIp9(ip) {
+  const resp = await fetchGeo(`https://ip9.com.cn/get?ip=${ip}`);
+  if (!resp) return null;
+  try {
+    const d = (await resp.json()).data;
+    if (!d) return null;
+    return { province: d.prov || "", city: d.city || "", district: d.area || "" };
+  } catch {
+    return null;
+  }
+}
+
+// 源2：pconline —— 仅 IPv4，GBK 中文，区县覆盖较好
+async function fromPconline(ip) {
+  if (ip.includes(":")) return null; // 其老后端不支持 IPv6
+  const resp = await fetchGeo(
+    `https://whois.pconline.com.cn/ipJson.jsp?ip=${ip}&json=true`,
+    { headers: { Accept: "application/json" } },
+  );
+  if (!resp) return null;
+  try {
+    const text = new TextDecoder("gbk").decode(await resp.arrayBuffer());
     const d = JSON.parse(text);
-    if (d.err) return fallback();
+    if (d.err) return null;
     return {
       province: d.pro || "",
       city: d.city || "",
       district: d.region || "",
     };
   } catch {
-    return fallback(); // 超时或网络异常时降级，不阻断登录
+    return null;
   }
+}
+
+// 源3：ip-api —— HTTP 中文，IPv4/IPv6 兜底，省+市
+async function fromIpApi(ip) {
+  const resp = await fetchGeo(
+    `http://ip-api.com/json/${ip}?lang=zh-CN&fields=status,regionName,city`,
+  );
+  if (!resp) return null;
+  try {
+    const d = await resp.json();
+    if (d.status !== "success") return null;
+    return { province: d.regionName || "", city: d.city || "", district: "" };
+  } catch {
+    return null;
+  }
+}
+
+// 登录地点：多源分层翻译，只返回中文地名，不返回、不存储 IP
+// IPv4 优先 pconline 拿区县；IPv6 走 ip9/ip-api 拿省市
+async function geoLocate(request, ip) {
+  const cfFallback = () => ({
+    province: PROVINCE_CODES[request.headers.get("CF-IPRegion")] || "",
+    city: request.headers.get("CF-IPCity") || "",
+    district: "",
+  });
+
+  // 仅允许合法 IP 字符进入 URL，防注入
+  if (!/^[0-9a-fA-F:.]+$/.test(ip)) return cfFallback();
+
+  const sources = ip.includes(":")
+    ? [fromIp9, fromIpApi]
+    : [fromPconline, fromIp9, fromIpApi];
+
+  for (const src of sources) {
+    const loc = await src(ip);
+    if (loc && (loc.province || loc.city)) return loc;
+  }
+  return cfFallback();
 }
 
 function formatLocation(loc) {
@@ -298,64 +346,6 @@ export default {
       const pageviews = (await env.FF_DATA.get("pageviews")) || "0";
       return new Response(adminHtml(rows, pageviews), {
         headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
-    }
-
-    // ---------- 临时调试端点（排查后删除）----------
-    if (url.pathname === "/__geo-debug") {
-      const dbgSession = await verifySession(
-        env,
-        request.headers.get("Cookie"),
-      );
-      if (!dbgSession || dbgSession.role !== "admin") {
-        return new Response(null, {
-          status: 302,
-          headers: { Location: "/__login" },
-        });
-      }
-      const dbg = {
-        ip,
-        gbkSupported: false,
-        cfHeaders: {
-          country: request.headers.get("CF-IPCountry"),
-          region: request.headers.get("CF-IPRegion"),
-          city: request.headers.get("CF-IPCity"),
-          postal: request.headers.get("CF-IPPostalCode"),
-        },
-        pconline: null,
-      };
-      try {
-        new TextDecoder("gbk");
-        dbg.gbkSupported = true;
-      } catch {
-        dbg.gbkSupported = false;
-      }
-      try {
-        const t0 = Date.now();
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 8000);
-        const resp = await fetch(
-          `https://whois.pconline.com.cn/ipJson.jsp?ip=${ip}&json=true`,
-          { signal: ctrl.signal },
-        );
-        clearTimeout(timer);
-        const buf = await resp.arrayBuffer();
-        const info = {
-          status: resp.status,
-          ms: Date.now() - t0,
-          byteLen: buf.byteLength,
-        };
-        try {
-          info.text = new TextDecoder("gbk").decode(buf);
-        } catch (e) {
-          info.decodeErr = String(e);
-        }
-        dbg.pconline = info;
-      } catch (e) {
-        dbg.pconline = { error: String(e) };
-      }
-      return new Response(JSON.stringify(dbg, null, 2), {
-        headers: { "Content-Type": "application/json; charset=utf-8" },
       });
     }
 
