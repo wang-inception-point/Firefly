@@ -4,6 +4,63 @@ const ADMIN_NAME = "Anna";
 const MAX_NAME_LEN = 20;
 const MAX_FAIL = 5;
 const FAIL_TTL = 600; // 失败锁定窗口 10 分钟
+const GEO_TIMEOUT = 3500; // 地理库查询超时 3.5 秒
+
+// 省级行政区代码 → 中文（Cloudflare 原生头降级用）
+const PROVINCE_CODES = {
+  11: "北京", 12: "天津", 13: "河北", 14: "山西", 15: "内蒙古",
+  21: "辽宁", 22: "吉林", 23: "黑龙江", 31: "上海",
+  32: "江苏", 33: "浙江", 34: "安徽", 35: "福建", 36: "江西",
+  37: "山东", 41: "河南", 42: "湖北", 43: "湖南", 44: "广东",
+  45: "广西", 46: "海南", 50: "重庆", 51: "四川", 52: "贵州",
+  53: "云南", 54: "西藏", 61: "陕西", 62: "甘肃", 63: "青海",
+  64: "宁夏", 65: "新疆", 71: "台湾", 81: "香港", 82: "澳门",
+};
+
+// 登录地点：主用太平洋 IP 库（中文、可到区县），失败降级 Cloudflare 原生头（省+市）
+// 只返回翻译后的中文地名，不返回、不存储 IP
+async function geoLocate(request, ip) {
+  const fallback = () => ({
+    province: PROVINCE_CODES[request.headers.get("CF-IPRegion")] || "",
+    city: request.headers.get("CF-IPCity") || "",
+    district: "",
+  });
+
+  // 仅允许合法 IP 字符进入 URL，防注入
+  if (!/^[0-9a-fA-F:.]+$/.test(ip)) return fallback();
+
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), GEO_TIMEOUT);
+    const resp = await fetch(
+      `https://whois.pconline.com.cn/ipJson.jsp?ip=${ip}&json=true`,
+      { signal: ctrl.signal, headers: { Accept: "application/json" } },
+    );
+    clearTimeout(timer);
+    if (!resp.ok) return fallback();
+    let text;
+    try {
+      text = new TextDecoder("gbk").decode(await resp.arrayBuffer());
+    } catch {
+      return fallback(); // 运行环境不支持 GBK 解码时降级
+    }
+    const d = JSON.parse(text);
+    if (d.err) return fallback();
+    return {
+      province: d.pro || "",
+      city: d.city || "",
+      district: d.region || "",
+    };
+  } catch {
+    return fallback(); // 超时或网络异常时降级，不阻断登录
+  }
+}
+
+function formatLocation(loc) {
+  if (!loc) return "未知";
+  const parts = [loc.province, loc.city, loc.district].filter(Boolean);
+  return parts.length ? parts.join(" ") : "未知";
+}
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
@@ -103,20 +160,20 @@ function adminHtml(rows, pageviews) {
       const last = new Date(d.lastSeen * 1000).toLocaleString("zh-CN", {
         hour12: false,
       });
-      return `<tr><td>${escapeHtml(r.name)}</td><td>${first}</td><td>${last}</td><td>${d.count}</td></tr>`;
+      return `<tr><td>${escapeHtml(r.name)}</td><td>${first}</td><td>${last}</td><td>${d.count}</td><td>${escapeHtml(formatLocation(d.location))}</td></tr>`;
     })
     .join("");
   return `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理面板</title>
 <style>body{font-family:sans-serif;background:#111;color:#eee;margin:0;padding:24px}
-table{border-collapse:collapse;width:100%;max-width:900px;margin-top:12px}
+table{border-collapse:collapse;width:100%;max-width:1000px;margin-top:12px}
 th,td{border:1px solid #333;padding:8px 10px;text-align:left;font-size:14px}
 th{background:#1e1e1e}
 a{color:#4f8cff}</style></head><body>
 <h2>管理面板</h2>
 <p>总进站次数：<strong>${pageviews}</strong>　访客数：<strong>${rows.length}</strong></p>
-<table><thead><tr><th>昵称</th><th>首次访问</th><th>最后访问</th><th>访问次数</th></tr></thead>
-<tbody>${trs || '<tr><td colspan="4">暂无访客记录</td></tr>'}</tbody></table>
+<table><thead><tr><th>昵称</th><th>首次访问</th><th>最后访问</th><th>访问次数</th><th>登录地点</th></tr></thead>
+<tbody>${trs || '<tr><td colspan="5">暂无访客记录</td></tr>'}</tbody></table>
 <p><a href="/">返回首页</a></p></body></html>`;
 }
 
@@ -194,6 +251,8 @@ export default {
           } else {
             data = { firstSeen: now, lastSeen: now, count: 1 };
           }
+          // 临时用 IP 翻译中文地名，只存地名、不存 IP
+          data.location = await geoLocate(request, ip);
           await env.FF_DATA.put(vKey, JSON.stringify(data));
           const pv =
             parseInt((await env.FF_DATA.get("pageviews")) || "0", 10) + 1;
