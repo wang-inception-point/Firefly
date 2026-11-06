@@ -41,7 +41,7 @@ export const galleryConfig: GalleryConfig = {
 			location: "原神",
 			date: "2026-11-05",
 			tags: ["原神", "沃雅妮莎"],
-			cover: "11.jpg",
+			cover: "/gallery/wo-ya-ni-sha/11.jpg",
 			password: "aB349465*",
 			//passwordHint: "密码提示（可选）",
 		},
