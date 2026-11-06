@@ -17,7 +17,7 @@ seriesOrder: 2
 
 ::github{repo="CuteLeaf/Firefly"}
 
-//使用代码 `::github{repo="CuteLeaf/Firefly"}` 创建 GitHub 仓库卡片。
+使用代码 `::github{repo="CuteLeaf/Firefly"}` 创建 GitHub 仓库卡片。
 
 ```markdown
 ::github{repo="CuteLeaf/Firefly"}
