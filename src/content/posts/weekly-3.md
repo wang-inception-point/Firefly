@@ -1484,9 +1484,10 @@ Linux高频默认目录(<font color="red">目录不是绝对，可以修改</fon
 #### 2.尾缀不能写php会被str-replace换成???
 #### 3.不能直接用cat打印，`cat` 把它**原样输出**，这段含 `<?php` 的文本被发给浏览器，而**浏览器不认识 `<?` 标签，会把整段隐藏**，于是页面看起来什么都没有。
 
-### 7.UA数据工作流程
+#### 7.UA数据工作流程
 在 BP 改 UA = <?=system(...)
         │（你能控制）
+        
         ▼
 nginx 原样写进日志（不检查）
         │
@@ -1496,7 +1497,8 @@ include 日志，PHP 遇到 <?...?> 执行
         ▼
 输出命令结果（ls 已成功 → fl0g.php index.php）、
 
-## 81题
+
+## 81题(条件竞争文件包含)
 ### 1.源码
 ![alt text](./images/weekly/image-50.png)
 #### 一样的解法与80题，
@@ -1620,3 +1622,9 @@ include 这个 session → 代码执行
 ![alt text](image-3.png)
 ![alt text](image-4.png)
 ![alt text](image-5.png)
+
+
+
+![alt text](image-8.png)
+![alt text](image-7.png)
+![alt text](image-9.png)
