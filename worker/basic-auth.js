@@ -301,6 +301,64 @@ export default {
       });
     }
 
+    // ---------- 临时调试端点（排查后删除）----------
+    if (url.pathname === "/__geo-debug") {
+      const dbgSession = await verifySession(
+        env,
+        request.headers.get("Cookie"),
+      );
+      if (!dbgSession || dbgSession.role !== "admin") {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "/__login" },
+        });
+      }
+      const dbg = {
+        ip,
+        gbkSupported: false,
+        cfHeaders: {
+          country: request.headers.get("CF-IPCountry"),
+          region: request.headers.get("CF-IPRegion"),
+          city: request.headers.get("CF-IPCity"),
+          postal: request.headers.get("CF-IPPostalCode"),
+        },
+        pconline: null,
+      };
+      try {
+        new TextDecoder("gbk");
+        dbg.gbkSupported = true;
+      } catch {
+        dbg.gbkSupported = false;
+      }
+      try {
+        const t0 = Date.now();
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const resp = await fetch(
+          `https://whois.pconline.com.cn/ipJson.jsp?ip=${ip}&json=true`,
+          { signal: ctrl.signal },
+        );
+        clearTimeout(timer);
+        const buf = await resp.arrayBuffer();
+        const info = {
+          status: resp.status,
+          ms: Date.now() - t0,
+          byteLen: buf.byteLength,
+        };
+        try {
+          info.text = new TextDecoder("gbk").decode(buf);
+        } catch (e) {
+          info.decodeErr = String(e);
+        }
+        dbg.pconline = info;
+      } catch (e) {
+        dbg.pconline = { error: String(e) };
+      }
+      return new Response(JSON.stringify(dbg, null, 2), {
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      });
+    }
+
     // ---------- 其余请求 ----------
     const session = await verifySession(env, request.headers.get("Cookie"));
     if (!session) {
