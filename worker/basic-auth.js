@@ -133,7 +133,7 @@ const AUTH_CSS = `
   body{
     font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif;
     color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;
-    padding:24px 16px;position:relative;background-size:cover;background-position:center;
+    padding:24px 16px;position:relative;background-size:cover;background-position:center top;
   }
   body::before{
     content:"";position:absolute;inset:0;
