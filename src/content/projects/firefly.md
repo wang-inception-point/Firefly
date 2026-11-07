@@ -11,13 +11,13 @@ tags:
   - Svelte
   - TailwindCSS
   - Typescript
-link:
-  - label: "GitHub"
-    icon: "fa7-brands:github"
-    value: "https://github.com/CuteLeaf/Firefly"
-  - label: "文档"
-    icon: "material-symbols:menu-book"
-    value: "https://docs-firefly.cuteleaf.cn"
+# link:
+#   - label: "GitHub"
+#     icon: "fa7-brands:github"
+#     value: "https://github.com/CuteLeaf/Firefly"
+#   - label: "文档"
+#     icon: "material-symbols:menu-book"
+#     value: "https://docs-firefly.cuteleaf.cn"
 ---
 
 ## 功能特性
@@ -48,8 +48,9 @@ link:
 - [x] **壁纸模式切换** - 横幅壁纸、全屏壁纸、全屏透明壁纸、纯色背景
 - [x] **主题色自定义** - 360° 色相调节
 
-如果你有好用的功能和优化，请提交 [Pull Request](https://github.com/CuteLeaf/Firefly/pulls)
+<!-- 如果你有好用的功能和优化，请提交 [Pull Request](https://github.com/CuteLeaf/Firefly/pulls) -->
 
+<!--
 ## 快速开始
 
 ### 环境要求
@@ -102,3 +103,4 @@ link:
    构建命令： `pnpm run build`
 
    安装命令： `pnpm install`
+-->
