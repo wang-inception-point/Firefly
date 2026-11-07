@@ -615,14 +615,23 @@ export default {
         if (!isAdmin) {
           const vKey = `visitor:${name}`;
           const existing = await env.FF_DATA.get(vKey);
-          if (!existing) {
-            // 密码正确但昵称未注册：不记失败，引导去注册
+          // existing 必须是可解析的 JSON 才算有效账号；损坏/空值视为未注册
+          let data = null;
+          if (existing) {
+            try {
+              data = JSON.parse(existing);
+              if (!data || typeof data !== "object") data = null;
+            } catch {
+              data = null;
+            }
+          }
+          if (!data) {
+            if (existing) await env.FF_DATA.delete(vKey); // 清理损坏残留
             return new Response(loginHtml("该昵称尚未注册，请先注册账号"), {
               status: 403,
               headers: { "Content-Type": "text/html; charset=utf-8" },
             });
           }
-          const data = JSON.parse(existing);
           data.lastSeen = now;
           data.count += 1;
           // 临时用 IP 翻译中文地名，只存地名、不存 IP
@@ -698,11 +707,23 @@ export default {
         }
 
         const vKey = `visitor:${name}`;
-        if (await env.FF_DATA.get(vKey)) {
-          return new Response(
-            registerHtml("该昵称已被占用，请换一个或直接登录", current, maxUsers),
-            { status: 409, headers: { "Content-Type": "text/html; charset=utf-8" } },
-          );
+        // 只有已存在且数据有效的才算"已占用"；损坏残留允许覆盖重建
+        const existingReg = await env.FF_DATA.get(vKey);
+        if (existingReg) {
+          let valid = false;
+          try {
+            const d = JSON.parse(existingReg);
+            if (d && typeof d === "object" && d.firstSeen) valid = true;
+          } catch {
+            valid = false;
+          }
+          if (valid) {
+            return new Response(
+              registerHtml("该昵称已被占用，请换一个或直接登录", current, maxUsers),
+              { status: 409, headers: { "Content-Type": "text/html; charset=utf-8" } },
+            );
+          }
+          await env.FF_DATA.delete(vKey); // 清掉损坏残留，继续注册
         }
         if (current >= maxUsers) {
           return new Response(
