@@ -156,7 +156,8 @@ const AUTH_CSS = `
   .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px;letter-spacing:1px}
   .field input{
     width:100%;padding:12px 14px;border-radius:10px;font-size:15px;color:var(--text);
-    background:rgba(8,14,11,.85);border:1px solid rgba(126,231,135,.22);outline:none;
+    background:rgba(8,14,11,.35);border:1px solid rgba(126,231,135,.22);outline:none;
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
   }
   .field input:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(126,231,135,.14)}
   .btn{
