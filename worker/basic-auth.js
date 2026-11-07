@@ -126,7 +126,7 @@ function escapeHtml(s) {
 const AUTH_CSS = `
   :root{
     --glow:#7ee787;--green:#3fb950;--text:#e6f0e8;--muted:#9bb0a1;
-    --border:rgba(126,231,135,.32);--card:rgba(11,19,15,.45);
+    --border:rgba(126,231,135,.32);--card:rgba(11,19,15,.58);
   }
   *{box-sizing:border-box}
   html,body{min-height:100%;margin:0}
@@ -143,11 +143,12 @@ const AUTH_CSS = `
     position:relative;width:100%;max-width:400px;background:var(--card);
     border:1px solid var(--border);border-radius:18px;padding:32px 30px;
     box-shadow:0 18px 50px rgba(0,0,0,.5);
-    -webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);
+    -webkit-backdrop-filter:blur(18px) saturate(1.15);backdrop-filter:blur(18px) saturate(1.15);
   }
   h1{
     font-family:"Noto Serif SC","Songti SC","STSong",serif;
     font-size:24px;margin:0 0 4px;font-weight:600;letter-spacing:2px;
+    text-shadow:0 1px 3px rgba(0,0,0,.7);
   }
   h1 .dot{color:var(--glow)}
   .sub{color:var(--muted);font-size:13px;margin:0 0 24px}
@@ -155,7 +156,7 @@ const AUTH_CSS = `
   .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px;letter-spacing:1px}
   .field input{
     width:100%;padding:12px 14px;border-radius:10px;font-size:15px;color:var(--text);
-    background:rgba(8,14,11,.7);border:1px solid rgba(126,231,135,.22);outline:none;
+    background:rgba(8,14,11,.85);border:1px solid rgba(126,231,135,.22);outline:none;
   }
   .field input:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(126,231,135,.14)}
   .btn{
