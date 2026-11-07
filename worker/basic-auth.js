@@ -144,7 +144,10 @@ const AUTH_CSS = `
     border:1px solid var(--border);border-radius:18px;padding:32px 30px;
     box-shadow:0 18px 50px rgba(0,0,0,.5);
     -webkit-backdrop-filter:blur(8px) saturate(1.1);backdrop-filter:blur(8px) saturate(1.1);
+    cursor:grab;touch-action:none;
   }
+  .card.dragging{cursor:grabbing}
+  .card input,.card button,.card a{cursor:auto}
   h1{
     font-family:"Noto Serif SC","Songti SC","STSong",serif;
     font-size:24px;margin:0 0 4px;font-weight:600;letter-spacing:2px;
@@ -180,6 +183,43 @@ const AUTH_CSS = `
   @media (max-width:480px){.card{padding:26px 22px}h1{font-size:21px}}
 `;
 
+// 卡片拖拽：鼠标与触摸统一用 Pointer Events；交互元素上不触发
+const DRAG_JS = `
+(function(){
+  var card=document.querySelector('.card');
+  if(!card)return;
+  var sx=0,sy=0,ol=0,ot=0;
+  function isInteractive(t){return !!t.closest('input,button,a,textarea,select,label');}
+  card.addEventListener('pointerdown',function(e){
+    if(isInteractive(e.target))return;
+    var r=card.getBoundingClientRect();
+    if(card.style.position!=='fixed'){
+      card.style.position='fixed';
+      card.style.left=r.left+'px';
+      card.style.top=r.top+'px';
+      card.style.margin='0';
+    }
+    sx=e.clientX;sy=e.clientY;
+    ol=parseFloat(card.style.left);ot=parseFloat(card.style.top);
+    try{card.setPointerCapture(e.pointerId);}catch(err){}
+    card.classList.add('dragging');
+  });
+  card.addEventListener('pointermove',function(e){
+    if(!card.hasPointerCapture||!card.hasPointerCapture(e.pointerId))return;
+    card.style.left=(ol+e.clientX-sx)+'px';
+    card.style.top=(ot+e.clientY-sy)+'px';
+  });
+  function end(e){
+    if(card.hasPointerCapture&&card.hasPointerCapture(e.pointerId)){
+      try{card.releasePointerCapture(e.pointerId);}catch(err){}
+      card.classList.remove('dragging');
+    }
+  }
+  card.addEventListener('pointerup',end);
+  card.addEventListener('pointercancel',end);
+})();
+`;
+
 function loginHtml(error) {
   return `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
@@ -205,6 +245,7 @@ function loginHtml(error) {
   </form>
   <p class="switch">还没有账号？<a href="/__register">去注册</a></p>
 </div>
+<script>${DRAG_JS}</script>
 </body></html>`;
 }
 
@@ -241,6 +282,7 @@ function registerHtml(error, current, max) {
   </form>
   <p class="switch">已有账号？<a href="/__login">去登录</a></p>
 </div>
+<script>${DRAG_JS}</script>
 </body></html>`;
 }
 
