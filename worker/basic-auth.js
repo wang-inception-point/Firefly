@@ -275,29 +275,29 @@ function adminHtml(rows, pageviews) {
     background:linear-gradient(150deg,rgba(12,28,19,.3),rgba(8,16,11,.2));
   }
   .image-bg > *{position:relative;z-index:1}
-  .stat{border-radius:14px;padding:22px 24px}
+  .stat{border-radius:14px;padding:34px 32px}
   .stat.bg-1::before{background-image:url("/panel-bg/bg-1.jpg");background-position:center 22%}
   .stat.bg-2::before{background-image:url("/panel-bg/bg-2.jpg");background-position:center 22%}
   .stat .num{
-    font-family:Georgia,"Times New Roman",serif;font-size:44px;font-weight:700;
+    font-family:Georgia,"Times New Roman",serif;font-size:60px;font-weight:700;
     color:var(--glow);line-height:1.1;
     text-shadow:0 2px 16px rgba(0,0,0,.75),0 0 26px rgba(126,231,135,.45);
   }
-  .stat .label{color:var(--muted);font-size:13px;margin-top:7px;letter-spacing:2px}
+  .stat .label{color:var(--muted);font-size:15px;margin-top:12px;letter-spacing:2px}
   .panel{border-radius:16px;background:var(--surface)}
   .panel.bg-3::before{background-image:url("/panel-bg/bg-3.jpg");background-position:center top;transform:scale(1)}
   .panel-title{
-    padding:16px 20px;border-bottom:1px solid var(--border);color:var(--muted);
-    font-size:14px;letter-spacing:2px;display:flex;align-items:center;gap:9px;
+    padding:19px 22px;border-bottom:1px solid var(--border);color:var(--muted);
+    font-size:15px;letter-spacing:2px;display:flex;align-items:center;gap:9px;
     background:rgba(9,16,12,.72);
   }
   .panel-title::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(63,185,80,.8)}
   .table-scroll{overflow-x:auto}
   table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:640px}
   col.c-name{width:18%}col.c-time{width:27%}col.c-count{width:12%}col.c-loc{width:16%}
-  th,td{padding:14px 18px;text-align:left;font-size:14px}
+  th,td{padding:18px 20px;text-align:left;font-size:15px}
   th{
-    color:var(--muted);font-weight:500;font-size:12.5px;letter-spacing:1px;
+    color:var(--muted);font-weight:500;font-size:13px;letter-spacing:1px;
     background:rgba(20,30,25,.92);border-bottom:1px solid var(--border);
   }
   td{border-bottom:1px solid rgba(38,54,44,.7);color:var(--text);text-shadow:0 1px 7px rgba(0,0,0,.85)}
@@ -326,7 +326,7 @@ function adminHtml(rows, pageviews) {
   .note{color:var(--faint);font-size:12.5px}
   @media (max-width:600px){
     body{padding:22px 14px 40px}h1{font-size:25px}
-    .stats{gap:12px}.stat{padding:17px 18px}.stat .num{font-size:34px}
+    .stats{gap:12px}.stat{padding:24px}.stat .num{font-size:46px}
   }
 </style></head>
 <body>
