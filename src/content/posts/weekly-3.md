@@ -1512,7 +1512,7 @@ include 日志，PHP 遇到 <?...?> 执行
 ![alt text](image-1.png)
 ##### 1.解析
 “.”被过滤了则之前的fl0g.ph?与日志包含都不能用了
-想到可以用
+想到可以用include包含session文件
 ### 2.session文件介绍
 #### 一、Session 文件基础
 
@@ -1590,7 +1590,13 @@ include($_GET['file']);
 ### 3.我自己理解的原理简介
 #### 1.我们可以通过在本地构建一个html网页上面那有提交功能，提交的地址指定为我们的靶机，这样html里面包含的数据就传过去了
 #### 2.浏览器php解析器工作原理(bug)
-##### <font color="red">当 PHP 检测到一个 multipart 请求里，含有配置指定名字的字段（默认 **`PHP_SESSION_UPLOAD_PROGRESS`**），就会自动：
+##### <font color="red">当 PHP 检测到一个 multipart 
+**(1. 用 multipart 发一个带文件字段的 POST
+2. PHP 一看是 "文件上传"，并且发现请求里有 `PHP_SESSION_UPLOAD_PROGRESS` 字段
+3. 就自动把进度数据（含你的代码）写进 session 文件
+4. 如果不是 multipart / 没有文件字段，这个机制根本不启动)**
+
+请求里，含有配置指定名字的字段（默认 **`PHP_SESSION_UPLOAD_PROGRESS`**），就会自动：
 - 1. 开启 / 创建 session 文件
 - 2. 把上传进度信息，连同**这个字段的值**，一起写进 session 文件
 - 3.重点.这个字段的值php是照单全收的，就如同UA里面输入，
@@ -1600,6 +1606,22 @@ include($_GET['file']);
 ```php
 <?=system('base64/var/www/html/fl0g.ph?');?>
 ```
+#### 3include(包含的是session文件)
+session文件这个路径不是随便写的，它由**「目录」+「文件名」两部分拼出来**，每一部分都有明确来源。
+
+##### 一、整体拼接公式
+
+```
+/tmp/   +   sess_   +   ctf123
+ │           │           │
+ │           │           └ 你 Cookie 里 PHPSESSID 的值
+ │           └ PHP 写死的文件名前缀
+ └ PHP 配置指定的保存目录
+= /tmp/sess_ctf123
+```
+
+
+
 ### 4.流程简介
 <font color="blue">
 
@@ -1618,13 +1640,38 @@ PHP 识别到（默认开启的功能）
 include 这个 session → 代码执行
 </font>
 
-![alt text](image-2.png)
-![alt text](image-3.png)
+### 5.综述攻击流程
+#### 1. 打开BP，开Proxy
+中intercept on让请求被卡住后，便于我能够修改改请求头、改 body、加 Cookie和发进intruder批量发起请求。
+#### 2.在代理面板按ctrl+o打开桌面上的up.html随便提交一个小的文件最好是.txt
+
+![alt text](image-10.png)
+![alt text](image-8.png)
+#### 3.（POST请求）抓到后新建一个Cookie：PHPSESSION=ctf123
+![alt text](image-5.png)
+#### 4.新建一个（GET请求）
+![alt text](image-7.png)
 ![alt text](image-4.png)
 ![alt text](image-5.png)
+**再同时设置他们发起请求的次数(null=1000):几乎必中**
 
+#### 5.详解为什么要同时发起(GET)(POST)请求
+##### 1.用GET请求读取：可以在url地址栏里拼接file=要包含的文件(符合题目中$GET=($_file))
+作用：让题目 `include` 这个 session 文件
+##### 2.再用POST请求发起请求：
+作用：以 "文件上传" 的形式发给服务器，触发 PHP 的 upload_progress，**把代码写进 session 文件**
 
+3.**<font color="red">POST（写）：不断把代码写进 /tmp/sess_ctf123
+GET（读）：不断 include /tmp/sess_ctf123
+         ↓
+   并发重复，GET 某次撞上代码 → 执行 → 返回 base64 → 解码拿 flag</font>**
+##### 4.`ession.upload_progress.enabled=On`靶机是默认 On(开启的话每次post请求都会被清除，所以要竞争性请求)
+POST 请求发出去
+  │
+  ├─ 旁证：/tmp/sess_ctf123 文件存在（include 返回 200 而非 No such file）
+  │
+  └─ 铁证：竞争时出现 Length 1435、含 upload_progress + base64
+            → 如果 POST 没写，永远不会有这条
 
-![alt text](image-8.png)
-![alt text](image-7.png)
+#### 6.将命中后的base64编码的字符串放到cyberchef进行解码
 ![alt text](image-9.png)

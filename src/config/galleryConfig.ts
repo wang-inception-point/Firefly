@@ -43,7 +43,7 @@ export const galleryConfig: GalleryConfig = {
 			tags: ["原神", "沃雅妮莎"],
 			cover: "gallery/wo-ya-ni-sha/11.jpg",
 			password: "aB349465*",
-			//passwordHint: "密码提示（可选）",
+			passwordHint: "密码提示:踩踩密码是多少猜对了没奖励,猜错了有惩罚",
 		},
 
 	],
