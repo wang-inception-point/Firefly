@@ -198,31 +198,164 @@ function validName(name) {
   );
 }
 
+// 管理员专属：注入静态页面的"回到管理面板"悬浮按钮（访客会话不注入，按钮本身只出现在管理员看到的页面）
+function adminReentryHtml() {
+  return `<div style="position:fixed;right:22px;bottom:22px;z-index:9999"><a href="/__panel-x7k2" style="display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;background:#16241c;color:#7ee787;border:1px solid #2f4a39;font-size:14px;text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,.45)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ee787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 3 5-6"/></svg>管理面板</a></div>`;
+}
+
+// 时间戳（秒）→ 北京时间字符串；Worker 默认时区是 UTC，必须显式指定 Asia/Shanghai，否则会少 8 小时
+function formatTime(ts) {
+  return new Date(ts * 1000).toLocaleString("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    hour12: false,
+  });
+}
+
 function adminHtml(rows, pageviews) {
   const trs = rows
     .map((r) => {
       const d = JSON.parse(r.value);
-      const first = new Date(d.firstSeen * 1000).toLocaleString("zh-CN", {
-        hour12: false,
-      });
-      const last = new Date(d.lastSeen * 1000).toLocaleString("zh-CN", {
-        hour12: false,
-      });
-      return `<tr><td>${escapeHtml(r.name)}</td><td>${first}</td><td>${last}</td><td>${d.count}</td><td>${escapeHtml(formatLocation(d.location))}</td></tr>`;
+      const first = formatTime(d.firstSeen);
+      const last = formatTime(d.lastSeen);
+      const locText = formatLocation(d.location);
+      const locClass = locText === "未知" ? "loc unknown" : "loc";
+      return `<tr><td class="name">${escapeHtml(r.name)}</td><td class="time">${first}</td><td class="time">${last}</td><td><span class="count-badge">${d.count}</span></td><td><span class="${locClass}">${escapeHtml(locText)}</span></td></tr>`;
     })
     .join("");
   return `<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理面板</title>
-<style>body{font-family:sans-serif;background:#111;color:#eee;margin:0;padding:24px}
-table{border-collapse:collapse;width:100%;max-width:1000px;margin-top:12px}
-th,td{border:1px solid #333;padding:8px 10px;text-align:left;font-size:14px}
-th{background:#1e1e1e}
-a{color:#4f8cff}</style></head><body>
-<h2>管理面板</h2>
-<p>总进站次数：<strong>${pageviews}</strong>　访客数：<strong>${rows.length}</strong></p>
-<table><thead><tr><th>昵称</th><th>首次访问</th><th>最后访问</th><th>访问次数</th><th>登录地点</th></tr></thead>
-<tbody>${trs || '<tr><td colspan="5">暂无访客记录</td></tr>'}</tbody></table>
-<p><a href="/">返回首页</a></p></body></html>`;
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理面板 · Firefly</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='8' fill='%237ee787'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0c120e;--surface:#131c17;--surface-2:#182420;--border:#26362c;
+    --glow:#7ee787;--green:#3fb950;--text:#e6f0e8;--muted:#9bb0a1;--faint:#6b7f73;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:
+      radial-gradient(900px 420px at 85% -10%, rgba(126,231,135,.10), transparent 60%),
+      radial-gradient(700px 380px at -10% 110%, rgba(63,185,80,.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif;
+    min-height:100vh;padding:30px 20px 48px;
+  }
+  .wrap{max-width:980px;margin:0 auto}
+  .firefly{
+    position:fixed;top:64px;right:9%;width:10px;height:10px;border-radius:50%;
+    background:var(--glow);
+    box-shadow:0 0 12px 3px rgba(126,231,135,.7),0 0 38px 10px rgba(126,231,135,.25);
+    animation:float 7s ease-in-out infinite;z-index:5;
+  }
+  @keyframes float{
+    0%,100%{transform:translate(0,0);opacity:.85}
+    35%{transform:translate(-18px,26px);opacity:1}
+    70%{transform:translate(10px,48px);opacity:.6}
+  }
+  @media (prefers-reduced-motion:reduce){.firefly{animation:none}}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  h1{
+    font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+    font-size:30px;font-weight:600;margin:0;letter-spacing:2px;
+  }
+  h1 .dot{color:var(--glow)}
+  .sub{color:var(--faint);font-size:13px;letter-spacing:1px}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:26px 0 28px}
+  .image-bg{position:relative;overflow:hidden;border:1px solid var(--border)}
+  .image-bg::before{
+    content:"";position:absolute;inset:0;z-index:0;
+    background-size:cover;background-position:center top;
+    transform:scale(1.03);filter:blur(0) brightness(.9) saturate(1.06);
+  }
+  .image-bg::after{
+    content:"";position:absolute;inset:0;z-index:0;
+    background:linear-gradient(150deg,rgba(12,28,19,.3),rgba(8,16,11,.2));
+  }
+  .image-bg > *{position:relative;z-index:1}
+  .stat{border-radius:14px;padding:22px 24px}
+  .stat.bg-1::before{background-image:url("/panel-bg/bg-1.jpg");background-position:center 22%}
+  .stat.bg-2::before{background-image:url("/panel-bg/bg-2.jpg");background-position:center 22%}
+  .stat .num{
+    font-family:Georgia,"Times New Roman",serif;font-size:44px;font-weight:700;
+    color:var(--glow);line-height:1.1;
+    text-shadow:0 2px 16px rgba(0,0,0,.75),0 0 26px rgba(126,231,135,.45);
+  }
+  .stat .label{color:var(--muted);font-size:13px;margin-top:7px;letter-spacing:2px}
+  .panel{border-radius:16px;background:var(--surface)}
+  .panel.bg-3::before{background-image:url("/panel-bg/bg-3.jpg");background-position:center top;transform:scale(1)}
+  .panel-title{
+    padding:16px 20px;border-bottom:1px solid var(--border);color:var(--muted);
+    font-size:14px;letter-spacing:2px;display:flex;align-items:center;gap:9px;
+    background:rgba(9,16,12,.72);
+  }
+  .panel-title::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(63,185,80,.8)}
+  .table-scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:640px}
+  col.c-name{width:18%}col.c-time{width:27%}col.c-count{width:12%}col.c-loc{width:16%}
+  th,td{padding:14px 18px;text-align:left;font-size:14px}
+  th{
+    color:var(--muted);font-weight:500;font-size:12.5px;letter-spacing:1px;
+    background:rgba(20,30,25,.92);border-bottom:1px solid var(--border);
+  }
+  td{border-bottom:1px solid rgba(38,54,44,.7);color:var(--text);text-shadow:0 1px 7px rgba(0,0,0,.85)}
+  tbody tr{transition:background .18s;background:rgba(9,16,12,.72)}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:rgba(126,231,135,.18)}
+  .name{font-weight:600}
+  .time{color:var(--muted);font-variant-numeric:tabular-nums}
+  .count-badge{
+    display:inline-block;min-width:30px;text-align:center;padding:3px 9px;border-radius:999px;
+    background:rgba(63,185,80,.16);color:var(--glow);font-variant-numeric:tabular-nums;
+  }
+  .loc{
+    display:inline-block;padding:4px 11px;border-radius:8px;font-size:13px;
+    border:1px solid rgba(126,231,135,.38);color:var(--glow);
+    background:rgba(126,231,135,.09);
+  }
+  .loc.unknown{border-color:var(--border);color:var(--faint);background:transparent}
+  footer{margin-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  .back{
+    color:var(--green);text-decoration:none;font-size:14px;padding:9px 18px;
+    border:1px solid var(--border);border-radius:10px;transition:all .18s;cursor:pointer;
+    background:rgba(19,28,23,.7);
+  }
+  .back:hover{border-color:var(--green);background:rgba(63,185,80,.14)}
+  .note{color:var(--faint);font-size:12.5px}
+  @media (max-width:600px){
+    body{padding:22px 14px 40px}h1{font-size:25px}
+    .stats{gap:12px}.stat{padding:17px 18px}.stat .num{font-size:34px}
+  }
+</style></head>
+<body>
+<div class="firefly" aria-hidden="true"></div>
+<div class="wrap">
+  <header>
+    <h1>管理面板<span class="dot"> · </span>萤火之夜</h1>
+    <div class="sub">FIREFLY ADMIN · 访客记录</div>
+  </header>
+  <section class="stats">
+    <div class="stat image-bg bg-1"><div><div class="num">${pageviews}</div><div class="label">总进站次数</div></div></div>
+    <div class="stat image-bg bg-2"><div><div class="num">${rows.length}</div><div class="label">访客数</div></div></div>
+  </section>
+  <section class="panel image-bg bg-3">
+    <div class="panel-title">访客名单</div>
+    <div class="table-scroll">
+      <table>
+        <colgroup><col class="c-name"><col class="c-time"><col class="c-time"><col class="c-count"><col class="c-loc"></colgroup>
+        <thead><tr><th>昵称</th><th>首次访问</th><th>最后访问</th><th>次数</th><th>登录地点</th></tr></thead>
+        <tbody>${trs || '<tr><td colspan="5">暂无访客记录</td></tr>'}</tbody>
+      </table>
+    </div>
+  </section>
+  <footer>
+    <a class="back" href="/">返回首页</a>
+    <div class="note">仅管理员可见 · 数据实时读取自 KV</div>
+  </footer>
+</div>
+</body></html>`;
 }
 
 export default {
@@ -357,6 +490,24 @@ export default {
         headers: { Location: "/__login" },
       });
     }
-    return env.ASSETS.fetch(request);
+    const assetResp = await env.ASSETS.fetch(request);
+    // 仅管理员 + 仅 HTML 页面：注入"回到管理面板"悬浮入口；其他资源与访客原样透传
+    if (
+      session.role === "admin" &&
+      assetResp.headers.get("Content-Type")?.includes("text/html")
+    ) {
+      const html = await assetResp.text();
+      const button = adminReentryHtml();
+      const injected = html.includes("</body>")
+        ? html.replace("</body>", `${button}</body>`)
+        : html + button;
+      const newHeaders = new Headers(assetResp.headers);
+      newHeaders.delete("content-length"); // 长度已变，让运行时重新计算
+      return new Response(injected, {
+        status: assetResp.status,
+        headers: newHeaders,
+      });
+    }
+    return assetResp;
   },
 };
