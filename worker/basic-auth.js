@@ -5,6 +5,8 @@ const MAX_NAME_LEN = 20;
 const MAX_FAIL = 5;
 const FAIL_TTL = 600; // 失败锁定窗口 10 分钟
 const GEO_TIMEOUT = 3500; // 地理库查询超时 3.5 秒
+const DEFAULT_MAX_USERS = 10; // 注册人数上限默认值（KV 未配置时使用）
+const MAX_USERS_KEY = "config:max_users"; // KV 中人数上限的配置键
 
 // 省级行政区代码 → 中文（Cloudflare 原生头降级用）
 const PROVINCE_CODES = {
@@ -120,19 +122,123 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// 登录 / 注册页共用样式；背景图在各自页面的 body 内联指定
+const AUTH_CSS = `
+  :root{
+    --glow:#7ee787;--green:#3fb950;--text:#e6f0e8;--muted:#9bb0a1;
+    --border:rgba(126,231,135,.32);--card:rgba(11,19,15,.82);
+  }
+  *{box-sizing:border-box}
+  html,body{min-height:100%;margin:0}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif;
+    color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:24px 16px;position:relative;background-size:cover;background-position:center;
+  }
+  body::before{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(160deg,rgba(8,16,12,.5),rgba(8,14,11,.32));
+  }
+  .card{
+    position:relative;width:100%;max-width:400px;background:var(--card);
+    border:1px solid var(--border);border-radius:18px;padding:32px 30px;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);
+  }
+  h1{
+    font-family:"Noto Serif SC","Songti SC","STSong",serif;
+    font-size:24px;margin:0 0 4px;font-weight:600;letter-spacing:2px;
+  }
+  h1 .dot{color:var(--glow)}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 24px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px;letter-spacing:1px}
+  .field input{
+    width:100%;padding:12px 14px;border-radius:10px;font-size:15px;color:var(--text);
+    background:rgba(8,14,11,.7);border:1px solid rgba(126,231,135,.22);outline:none;
+  }
+  .field input:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(126,231,135,.14)}
+  .btn{
+    width:100%;margin-top:8px;padding:13px;border:0;border-radius:11px;cursor:pointer;
+    background:var(--green);color:#08130b;font-size:15px;font-weight:600;letter-spacing:2px;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{background:#3a4a40;color:#82948a;cursor:not-allowed;filter:none}
+  .switch{text-align:center;margin:20px 0 0;font-size:13.5px;color:var(--muted)}
+  .switch a{color:var(--glow);text-decoration:none}
+  .switch a:hover{text-decoration:underline}
+  .err{color:#ff8f7f;font-size:13px;margin:0 0 16px;padding:10px 12px;border-radius:9px;background:rgba(217,106,95,.14);border:1px solid rgba(217,106,95,.3)}
+  .quota{margin-bottom:22px;padding:13px 15px;border-radius:11px;background:rgba(126,231,135,.08);border:1px solid rgba(126,231,135,.2)}
+  .quota .qline{display:flex;justify-content:space-between;font-size:13px;margin-bottom:9px}
+  .quota .qline b{color:var(--glow);font-variant-numeric:tabular-nums}
+  .bar{height:7px;border-radius:999px;background:rgba(8,14,11,.8);overflow:hidden}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--glow));border-radius:999px}
+  .quota.full .bar i{background:linear-gradient(90deg,#d96a5f,#e88a7a)}
+  .quota.full .qline b{color:#e89a8c}
+  @media (max-width:480px){.card{padding:26px 22px}h1{font-size:21px}}
+`;
+
 function loginHtml(error) {
   return `<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>登录</title>
-<style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#111;color:#eee}
-form{background:#1e1e1e;padding:32px;border-radius:12px;display:flex;flex-direction:column;gap:12px;width:280px}
-input{padding:10px;border-radius:6px;border:1px solid #333;background:#2a2a2a;color:#fff}
-button{padding:10px;border:0;border-radius:6px;background:#4f8cff;color:#fff;cursor:pointer}
-.err{color:#ff6b6b;font-size:13px;margin:0}</style></head>
-<body><form method="POST" action="/__login"><h3>请输入昵称和访问密码</h3>
-${error ? `<p class="err">${escapeHtml(error)}</p>` : ""}
-<input type="text" name="name" placeholder="昵称" maxlength="20" autofocus required>
-<input type="password" name="password" placeholder="密码" required>
-<button type="submit">进入</button></form></body></html>`;
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 · Firefly</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='8' fill='%237ee787'/%3E%3C/svg%3E">
+<style>${AUTH_CSS}</style></head>
+<body style="background-image:url('/auth-bg/auth-bg-1.jpg')">
+<div class="card">
+  <h1>欢迎回来<span class="dot"> · </span>萤火</h1>
+  <p class="sub">登录后进入 Firefly 站点</p>
+  <form method="POST" action="/__login">
+    ${error ? `<p class="err">${escapeHtml(error)}</p>` : ""}
+    <div class="field">
+      <label>账号（昵称）</label>
+      <input type="text" name="name" placeholder="请输入注册的昵称" maxlength="20" autofocus required>
+    </div>
+    <div class="field">
+      <label>密码</label>
+      <input type="password" name="password" placeholder="请输入密码" required>
+    </div>
+    <button class="btn" type="submit">登 录</button>
+  </form>
+  <p class="switch">还没有账号？<a href="/__register">去注册</a></p>
+</div>
+</body></html>`;
+}
+
+// 注册页：current=当前已注册账号数，max=人数上限；满员时表单禁用
+function registerHtml(error, current, max) {
+  const full = current >= max;
+  const pct = Math.min(100, Math.round((current / max) * 100));
+  return `<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>注册 · Firefly</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='8' fill='%237ee787'/%3E%3C/svg%3E">
+<style>${AUTH_CSS}</style></head>
+<body style="background-image:url('/auth-bg/auth-bg-2.jpg')">
+<div class="card">
+  <h1>创建账号<span class="dot"> · </span>萤火</h1>
+  <p class="sub">注册名额有限，先到先得</p>
+  <div class="quota${full ? " full" : ""}">
+    <div class="qline"><span>注册名额</span><b>${current} / ${max}</b></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+  </div>
+  ${error ? `<p class="err">${escapeHtml(error)}</p>` : ""}
+  ${full ? `<p class="err">注册名额已满，无法继续注册。如需名额请联系管理员。</p>` : ""}
+  <form method="POST" action="/__register">
+    <div class="field">
+      <label>账号（昵称，1–20 位）</label>
+      <input type="text" name="name" placeholder="中英文 / 数字 / _-" maxlength="20" ${full ? "disabled" : ""} autofocus required>
+    </div>
+    <div class="field">
+      <label>访问密码（共享）</label>
+      <input type="password" name="password" placeholder="请输入站点访问密码" ${full ? "disabled" : ""} required>
+    </div>
+    <button class="btn" type="submit" ${full ? "disabled" : ""}>注 册</button>
+  </form>
+  <p class="switch">已有账号？<a href="/__login">去登录</a></p>
+</div>
+</body></html>`;
 }
 
 async function sign(env, data) {
@@ -198,6 +304,12 @@ function validName(name) {
   );
 }
 
+// 读取注册人数上限：KV 配置优先，缺失或非法时回退默认值 10
+async function getMaxUsers(env) {
+  const v = parseInt((await env.FF_DATA.get(MAX_USERS_KEY)) || "", 10);
+  return Number.isFinite(v) && v >= 1 ? v : DEFAULT_MAX_USERS;
+}
+
 // 管理员专属：注入静态页面的"回到管理面板"悬浮按钮（访客会话不注入，按钮本身只出现在管理员看到的页面）
 function adminReentryHtml() {
   return `<div style="position:fixed;right:22px;bottom:22px;z-index:9999"><a href="/__panel-x7k2" style="display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:999px;background:#16241c;color:#7ee787;border:1px solid #2f4a39;font-size:14px;text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,.45)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ee787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 3 5-6"/></svg>管理面板</a></div>`;
@@ -211,7 +323,7 @@ function formatTime(ts) {
   });
 }
 
-function adminHtml(rows, pageviews) {
+function adminHtml(rows, pageviews, maxUsers) {
   const trs = rows
     .map((r) => {
       const d = JSON.parse(r.value);
@@ -285,6 +397,28 @@ function adminHtml(rows, pageviews) {
   }
   .stat .label{color:var(--muted);font-size:15px;margin-top:12px;letter-spacing:2px}
   .panel{border-radius:16px;background:var(--surface)}
+  .quota-box{border-radius:16px;background:var(--surface);border:1px solid var(--border);margin-bottom:22px;overflow:hidden}
+  .q-title{
+    padding:17px 22px;border-bottom:1px solid var(--border);color:var(--muted);
+    font-size:15px;letter-spacing:2px;display:flex;align-items:center;gap:9px;background:rgba(9,16,12,.72);
+  }
+  .q-title::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(63,185,80,.8)}
+  .q-body{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .q-info{font-size:14.5px;color:var(--muted)}
+  .q-info b{color:var(--glow);font-variant-numeric:tabular-nums}
+  .q-warn{color:#e89a8c;margin-left:6px}
+  .q-form{display:flex;gap:10px}
+  .q-form input{
+    width:110px;padding:10px 12px;border-radius:9px;font-size:15px;color:var(--text);
+    background:rgba(8,14,11,.7);border:1px solid rgba(126,231,135,.22);outline:none;
+  }
+  .q-form input:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(126,231,135,.14)}
+  .q-form button{
+    padding:10px 18px;border:0;border-radius:9px;cursor:pointer;
+    background:var(--green);color:#08130b;font-size:14px;font-weight:600;letter-spacing:1px;
+  }
+  .q-form button:hover{filter:brightness(1.08)}
+  @media (max-width:600px){.q-body{flex-direction:column;align-items:stretch}.q-form{justify-content:flex-end}}
   .panel.bg-3::before{background-image:url("/panel-bg/bg-3.jpg");background-position:center top;transform:scale(1)}
   .panel-title{
     padding:19px 22px;border-bottom:1px solid var(--border);color:var(--muted);
@@ -339,6 +473,18 @@ function adminHtml(rows, pageviews) {
   <section class="stats">
     <div class="stat image-bg bg-1"><div><div class="num">${pageviews}</div><div class="label">总进站次数</div></div></div>
     <div class="stat image-bg bg-2"><div><div class="num">${rows.length}</div><div class="label">访客数</div></div></div>
+  </section>
+  <section class="quota-box">
+    <div class="q-title">注册名额管理</div>
+    <div class="q-body">
+      <div class="q-info">当前已注册 <b>${rows.length}</b> 个账号，上限 <b>${maxUsers}</b> 个
+        ${rows.length >= maxUsers ? '<span class="q-warn">（已满，新用户无法注册）</span>' : ""}
+      </div>
+      <form method="POST" action="/__panel-x7k2" class="q-form">
+        <input type="number" name="max_users" min="1" max="9999" value="${maxUsers}" required>
+        <button type="submit">保存上限</button>
+      </form>
+    </div>
   </section>
   <section class="panel image-bg bg-3">
     <div class="panel-title">访客名单</div>
@@ -420,18 +566,20 @@ export default {
           });
         }
 
-        // 记录访客（admin 不进访客名单）
+        // 普通用户：必须是已注册账号才放行并更新统计；admin 不进访客名单
         if (!isAdmin) {
           const vKey = `visitor:${name}`;
           const existing = await env.FF_DATA.get(vKey);
-          let data;
-          if (existing) {
-            data = JSON.parse(existing);
-            data.lastSeen = now;
-            data.count += 1;
-          } else {
-            data = { firstSeen: now, lastSeen: now, count: 1 };
+          if (!existing) {
+            // 密码正确但昵称未注册：不记失败，引导去注册
+            return new Response(loginHtml("该昵称尚未注册，请先注册账号"), {
+              status: 403,
+              headers: { "Content-Type": "text/html; charset=utf-8" },
+            });
           }
+          const data = JSON.parse(existing);
+          data.lastSeen = now;
+          data.count += 1;
           // 临时用 IP 翻译中文地名，只存地名、不存 IP
           data.location = await geoLocate(request, ip);
           await env.FF_DATA.put(vKey, JSON.stringify(data));
@@ -457,6 +605,95 @@ export default {
       });
     }
 
+    // ---------- 注册 ----------
+    if (url.pathname === "/__register") {
+      const maxUsers = await getMaxUsers(env);
+      const current = (await env.FF_DATA.list({ prefix: "visitor:" })).keys.length;
+
+      if (request.method === "POST") {
+        // 限流：失败次数检查
+        const failKey = `fail:${ip}`;
+        const failCount = parseInt((await env.FF_DATA.get(failKey)) || "0", 10);
+        if (failCount >= MAX_FAIL) {
+          return new Response(
+            registerHtml("失败次数过多，请 10 分钟后再试", current, maxUsers),
+            { status: 429, headers: { "Content-Type": "text/html; charset=utf-8" } },
+          );
+        }
+
+        let form;
+        try {
+          form = await request.formData();
+        } catch {
+          return new Response("Bad request", { status: 400 });
+        }
+        const name = String(form.get("name") || "").trim();
+        const password = String(form.get("password") || "");
+
+        if (!validName(name)) {
+          return new Response(
+            registerHtml("昵称无效（1–20 位，中英文/数字/_-）", current, maxUsers),
+            { status: 400, headers: { "Content-Type": "text/html; charset=utf-8" } },
+          );
+        }
+        if (name === ADMIN_NAME) {
+          return new Response(
+            registerHtml("该昵称为系统保留名，请换一个", current, maxUsers),
+            { status: 400, headers: { "Content-Type": "text/html; charset=utf-8" } },
+          );
+        }
+        if (password !== env.AUTH_PASS) {
+          await env.FF_DATA.put(failKey, String(failCount + 1), {
+            expirationTtl: FAIL_TTL,
+          });
+          return new Response(
+            registerHtml("访问密码错误", current, maxUsers),
+            { status: 401, headers: { "Content-Type": "text/html; charset=utf-8" } },
+          );
+        }
+
+        const vKey = `visitor:${name}`;
+        if (await env.FF_DATA.get(vKey)) {
+          return new Response(
+            registerHtml("该昵称已被占用，请换一个或直接登录", current, maxUsers),
+            { status: 409, headers: { "Content-Type": "text/html; charset=utf-8" } },
+          );
+        }
+        if (current >= maxUsers) {
+          return new Response(
+            registerHtml("注册名额已满", current, maxUsers),
+            { status: 403, headers: { "Content-Type": "text/html; charset=utf-8" } },
+          );
+        }
+
+        // 创建账号：沿用 visitor 结构，只存统计与中文地名，不存密码
+        const location = await geoLocate(request, ip);
+        await env.FF_DATA.put(
+          vKey,
+          JSON.stringify({ firstSeen: now, lastSeen: now, count: 1, location }),
+        );
+        const pv = parseInt((await env.FF_DATA.get("pageviews")) || "0", 10) + 1;
+        await env.FF_DATA.put("pageviews", String(pv));
+
+        // 注册成功即登录，颁发 Cookie
+        const exp = String(now + SESSION_TTL);
+        const role = "user";
+        const sig = await sign(env, `${exp}.${role}.${name}`);
+        const cookieVal = `${exp}.${role}.${encodeURIComponent(name)}.${sig}`;
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: "/",
+            "Set-Cookie": `${COOKIE_NAME}=${cookieVal}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL}`,
+          },
+        });
+      }
+
+      return new Response(registerHtml("", current, maxUsers), {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
     // ---------- 管理面板 ----------
     if (url.pathname === "/__panel-x7k2") {
       const session = await verifySession(
@@ -469,6 +706,27 @@ export default {
           headers: { Location: "/__login" },
         });
       }
+      const maxUsers = await getMaxUsers(env);
+
+      // 保存人数上限（POST 表单）
+      if (request.method === "POST") {
+        let form;
+        try {
+          form = await request.formData();
+        } catch {
+          return new Response("Bad request", { status: 400 });
+        }
+        const v = parseInt(String(form.get("max_users") || ""), 10);
+        if (!Number.isFinite(v) || v < 1 || v > 9999) {
+          return new Response("上限必须是 1–9999 的整数", { status: 400 });
+        }
+        await env.FF_DATA.put(MAX_USERS_KEY, String(v));
+        return new Response(null, {
+          status: 303,
+          headers: { Location: "/__panel-x7k2" },
+        });
+      }
+
       const listed = await env.FF_DATA.list({ prefix: "visitor:" });
       const rows = [];
       for (const k of listed.keys) {
@@ -477,7 +735,7 @@ export default {
         rows.push({ name: keyName, value });
       }
       const pageviews = (await env.FF_DATA.get("pageviews")) || "0";
-      return new Response(adminHtml(rows, pageviews), {
+      return new Response(adminHtml(rows, pageviews, maxUsers), {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
