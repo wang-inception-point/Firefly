@@ -1498,7 +1498,7 @@ include 日志，PHP 遇到 <?...?> 执行
 输出命令结果（ls 已成功 → fl0g.php index.php）、
 
 
-## 81题(条件竞争文件包含)
+## 81题
 ### 1.源码
 ![alt text](./images/weekly/image-50.png)
 #### 一样的解法与80题，
@@ -1507,7 +1507,7 @@ include 日志，PHP 遇到 <?...?> 执行
 
 ##### 1.例如在url让include包含有php代码文件，我尝试一下
 
-## 82题
+## 82题(条件竞争文件包含)
 ### 1.源码
 ![alt text](image-1.png)
 ##### 1.解析
