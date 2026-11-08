@@ -1503,7 +1503,7 @@ include 日志，PHP 遇到 <?...?> 执行
 ![alt text](./images/weekly/image-50.png)
 #### 一样的解法与80题，
 ![alt text](./images/weekly/image-49.png)
-#### 没绷住(<font color="red">证明80题可能有其他解法</font>）
+#### (<font color="red">证明80题可能有其他解法</font>）
 
 ##### 1.例如在url让include包含有php代码文件，我尝试一下
 
@@ -1675,3 +1675,82 @@ POST 请求发出去
 
 #### 6.将命中后的base64编码的字符串放到cyberchef进行解码
 ![alt text](image-9.png)
+
+<--up.html简介![alt text](image-11.png)
+![alt text](image-12.png)-->
+
+## Geek
+### ezupload
+#### 1.源码
+![alt text](image-13.png)
+
+#### 2.解析
+##### 1.与之前的82题有相似之处
+##### 2.先做一下探测
+- 建一个.txt文件上传一下，看他的上传规律
+返回
+![alt text](image-14.png)
+| txt 上传成功，能直接访问 | 后端**没拦 txt** |
+| --- | --- |
+| 访问 URL | `/uploads/文本文档.txt`（`%20` 是空格编码） |
+| 上传目录 | **`/uploads/`** |
+| 文件名 | **保留原名**（没随机改名） |
+
+所以规律是：上传后的文件在 `http://靶机/uploads/我的文件名`。
+
+- 2.再建一个shell.php上传一句话木马
+```php
+<?=system('ls');?>查目录
+```
+ 看能否执行
+<font color="red">或者说过滤了什么</font>
+![alt text](image-15.png)
+
+- 3.再建一个shell.php文件，里面写hello，看php文件能否上传
+![alt text](image-16.png)
+上传成功，证明WAF不过滤后缀.php
+![alt text](image-17.png)
+且能访问
+- 4.但是我们要执行命令必须要写<?,
+先验证一下php能被网站解析，在抓包看WAF
+![alt text](image-18.png)
+文件能被解析
+- 5.抓包
+![alt text](image-19.png)
+将第26行改为<?php system('ls');?>
+看拦截"<"是否与<?=有关
+![alt text](image-20.png)
+
+一样：`<?php ... ?>` 也被拦，说明 WAF **拦所有 `<`**，跟标签写法无关。
+#### 3.<font color="red">所以不能在文件内容里写任何 PHP 代码。必须换思路：**让 WAF 看到的文件内容，和 PHP 实际保存的内容不一样。**</font>
+
+##### 1.下一步：试 multipart 多字段绕过
+原理：在一个上传请求里放**两个同名 file 字段**，如果 WAF 只检第一个、PHP 只存最后一个，就绕了。
+multipart 格式允许在一次请求里放**多块数据**。字段名 `name="file"` 出现两次，语法上完全合法：
+##### 2.过程：把第一块放 "合法" 的，第二块放 "违禁" 的：
+第一块（WAF 检查的）：hello.php，内容 "hello"        ← 没有 <，WAF 放行
+第二块（PHP 保存的）：shell.php，内容 <?=system('ls');?>  ← 有 <，但 WAF 没检到
+##### 结果：
+
+- WAF 看第一块 → 干净 → **放行**
+- PHP 取最后一块 → 保存了 shell.php（含木马）→ **绕过成功**
+#### 4.实操
+##### 1.开启拦截，先上传一个无危害文件
+再将raw中 Raw 里找到文件那部分（`name="file"`），把它**改成两块**：
+这样就能发两个.php文件从而绕过
+![alt text](image-21.png)
+<font color="red">有问题还是被拦截了</font>
+
+##### 2.换思路用.user.ini
+###### 1.内容写：auto_prepend_file=hello.txt
+![alt text](image-22.png)
+现在的 `.user.ini` 内容是 `auto_prepend_file=hello.txt`，意思是 "uploads 目录下所有 .php 文件执行前，先包含 hello.txt"。
+但 hello.txt 里要放 PHP 木马（含 `<`）。之前我们只测过 .php 文件含 `<` 被拦，**还没测过 .txt 文件含 `<` 拦不拦**。
+新建hello.txt,里面写<?=system('ls');?>
+![alt text](image-24.png)
+发现被拦
+##### 3.换思路，既然不能上传含 `<` 的文件，那让 .user.ini 直接从 POST 请求体读代码。、
+改内容：auto_prepend_file=php://input
+![alt text](image-25.png)
+![alt text](image-26.png)
+
