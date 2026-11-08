@@ -1753,4 +1753,7 @@ multipart 格式允许在一次请求里放**多块数据**。字段名 `name="f
 改内容：auto_prepend_file=php://input
 ![alt text](image-25.png)
 ![alt text](image-26.png)
-
+发现结果还是只有hello没有目录
+WAF 不仅拦 `<`，还拦 `auto_prepend_file` 关键词：
+.user.ini不行
+##### 3.再换
