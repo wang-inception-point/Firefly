@@ -1757,6 +1757,8 @@ multipart 格式允许在一次请求里放**多块数据**。字段名 `name="f
 WAF 不仅拦 `<`，还拦 `auto_prepend_file` 关键词：
 .user.ini不行
 ##### 3.换思路：探测 WAF 到底检测什么
+<font color="red">看到Apache</font>
+![alt text](image-27.png)
 
 用 PowerShell 在服务器上批量测试，搞清楚 WAF 的检测范围：
 
