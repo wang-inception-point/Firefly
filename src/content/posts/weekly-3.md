@@ -1756,4 +1756,75 @@ multipart 格式允许在一次请求里放**多块数据**。字段名 `name="f
 发现结果还是只有hello没有目录
 WAF 不仅拦 `<`，还拦 `auto_prepend_file` 关键词：
 .user.ini不行
-##### 3.再换
+##### 3.换思路：探测 WAF 到底检测什么
+
+用 PowerShell 在服务器上批量测试，搞清楚 WAF 的检测范围：
+
+| 位置 | WAF 是否拦 |
+|---|---|
+| 文件内容里的 `<`（0x3C） |  **拦** |
+| submit 字段里的 `<` |  不拦 |
+| 文件名里的 `<` |  不拦 |
+| Content-Disposition 里的 `<` |  不拦 |
+| Content-Type 里的 `<` |  不拦 |
+
+**结论：WAF 只检测 `name="file"` 的文件内容部分里的 `<` 字节。**
+
+##### 4.测试各种绕法
+
+| 绕法 | 结果 |
+|---|---|
+| URL 编码 `%3C?=...%3E` |  绕 WAF，但 PHP 不执行（返回纯文本） |
+| HTML 实体 `&lt;?=...&gt;` |  绕 WAF，但 PHP 不执行 |
+| Hex 转义 `\x3C?=...\x3E` |  绕 WAF，但 PHP 不执行 |
+| Content-Transfer-Encoding: base64 |  绕 WAF，但 PHP 不解码 |
+| .htaccess AddType 让 .txt 当 PHP 解析 |  生效，但还是需要 `<` |
+| 多字段（两个 name="file"） |  被拦 |
+| file/FILE 大小写 |  PHP 不处理大写 FILE |
+| auto_prepend_file 各种变形（注释、多空格、Tab） |  全被拦 |
+
+**核心矛盾：WAF 只认 0x3C 这个字节，PHP 也只认 `<?` 标签。编码能绕 WAF，但 PHP 也不执行。**
+
+##### 5.最终解法：反斜杠 + CRLF 续行拆分关键词
+
+**关键思路**：用反斜杠 + CRLF 换行，把 `php_value` 和 `auto_prepend_file` 拆成多行，WAF 检测不到完整关键词，但 Apache 解析 .htaccess 时会把反斜杠+CRLF 当续行，拼成完整指令。
+
+**.htaccess 内容**：
+```
+php_val\
+ue auto_prepend_\
+file /flag
+```
+
+**原理**：
+| 角色 | 看到的内容 |
+|---|---|
+| **WAF** | 拆成了 `php_val`、`ue auto_prepend_`、`file /flag` 三行，检测不到完整的 `php_value` 和 `auto_prepend_file` 关键词 → **放行** |
+| **Apache** | 解析 .htaccess 时，反斜杠 + CRLF 被当续行，拼成完整的 `php_value auto_prepend_file /flag` → **生效** |
+
+**注意**：
+- 必须是 **CRLF 换行**（`\r\n`），纯 LF 会 500
+- 必须**同时拆 `php_value` 和 `auto_prepend_file`** 两个关键词，只拆一个会被拦
+
+##### 6.验证效果
+
+上传 .htaccess 后，访问 `uploads/shell.php`：
+
+```
+SYC{082237df-9a8a-4f98-8df0-59e23f5f1787}
+PD9lIHN5c3RlbSgnbHMnKTs/Pg==
+```
+
+- 第一行：flag（auto_prepend_file 包含 /flag 输出的）
+- 第二行：之前上传的 base64 字符串（shell.php 本身的内容）
+
+##### 7.知识点小结
+
+| 考点 | 要点 |
+|---|---|
+| WAF 检测范围 | 只检测文件内容里的 `<` 字节（0x3C），不检测文件名、header、其他字段 |
+| 反斜杠续行 | Apache .htaccess 支持 `\` + CRLF 续行，拼成完整指令 |
+| 关键词拆分 | 把 `php_value`、`auto_prepend_file` 拆成两行，绕 WAF 关键词检测 |
+| auto_prepend_file | PHP 在执行脚本前自动包含指定文件，直接输出 /flag 内容 |
+
+<font color="red">**一句话总结**：WAF 拦 `php_value auto_prepend_file` 关键词，用反斜杠+CRLF 把两个关键词都拆开，WAF 看不到完整词就放行，Apache 解析时拼回完整指令生效。</font>
