@@ -50,6 +50,15 @@ export const friendsConfig: FriendLink[] = [
 		weight: 8,
 		enabled: true,
 	},
+	{
+		title: "陈志杰",
+		imgurl: "https://avatars.githubusercontent.com/u/44914786?v=4&s=640",
+		desc: "The web framework for content-driven websites. ⭐️ Star to support our work!",
+		siteurl: "https://fryy13427.github.io",
+		tags: ["Framework"],
+		weight: 8,
+		enabled: true,
+	},
 ];
 
 // 获取启用的友链并进行排序
