@@ -59,6 +59,15 @@ export const friendsConfig: FriendLink[] = [
 		weight: 8,
 		enabled: true,
 	},
+	{
+		title: "陈世勋",
+		imgurl: "/friends/chenshixun.jpg",
+		desc: "二次元大肘子",
+		siteurl: "https://pomme-x.github.io/Pomme-project/",
+		tags: ["Framework"],
+		weight: 8,
+		enabled: true,
+	},
 ];
 
 // 获取启用的友链并进行排序
