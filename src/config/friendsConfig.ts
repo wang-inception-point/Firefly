@@ -52,7 +52,7 @@ export const friendsConfig: FriendLink[] = [
 	},
 	{
 		title: "陈志杰",
-		imgurl: "public\friends\b_f5a2e946fa91cfccab8d4337fcafccd4.jpg",
+		imgurl: "/friends/astro.jpg",
 		desc: "The web framework for content-driven websites. ⭐️ Star to support our work!",
 		siteurl: "https://fryy13427.github.io",
 		tags: ["Framework"],
