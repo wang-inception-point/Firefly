@@ -4,6 +4,7 @@ published: 2026-11-04
 description: 这篇文章演示如何在博客文章中嵌入视频。
 tags: [示例, 视频, Firefly]
 category: 文章示例
+image: ./images/cover9.jpg
 slug: video
 series: "Firefly 功能示例"
 seriesOrder: 5

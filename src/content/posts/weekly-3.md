@@ -7,6 +7,7 @@ category: "学习记录"
 series: "周报"
 seriesOrder: 1
 tags: [周报]
+image: ./images/cover3.jpg
 ---
 
 ## 本周总结
