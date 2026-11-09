@@ -47,3 +47,6 @@ package/
 .codex*
 .claude
 .mimocode
+
+# R2 私有模型文件（不推 GitHub）
+r2-upload/
