@@ -1,0 +1,420 @@
+{
+  "Version": 3,
+  "ConfVer": 0,
+  "Type": 0,
+  "FileReferences": {
+    "Moc": "暹罗猫.moc3",
+    "Textures": [
+      "暹罗猫.4096/texture_00.png",
+      "暹罗猫.4096/texture_01.png",
+      "暹罗猫.4096/texture_02.png",
+      "暹罗猫.4096/texture_03.png"
+    ],
+    "Physics": "暹罗猫.physics3.json",
+    "PhysicsV2": {
+      "File": "暹罗猫.physics3.json"
+    },
+    "Motions": {
+      "动作": [
+        {
+          "Name": "大小变.exp3",
+          "Expression": "大小变.exp3"
+        },
+        {
+          "Name": "水印.exp3",
+          "Expression": "水印.exp3"
+        }
+      ],
+      "表情": [
+        {
+          "Name": "取消纱裙.exp3",
+          "Expression": "取消纱裙.exp3"
+        },
+        {
+          "Name": "取消披肩.exp3",
+          "Expression": "取消披肩.exp3"
+        }
+      ],
+      "前倾-哭": [
+        {
+          "Name": "哭哭哭.exp3",
+          "Expression": "哭哭哭.exp3",
+          "Intimacy": {}
+        },
+        {
+          "Name": "前倾.exp3",
+          "Expression": "前倾.exp3"
+        }
+      ],
+      "肤色": [
+        {
+          "Name": "换肤色.exp3",
+          "Expression": "换肤色.exp3"
+        },
+        {
+          "Name": "害羞.exp3",
+          "Expression": "害羞.exp3"
+        }
+      ],
+      "吐魂": [
+        {
+          "Name": "吐魂.exp3",
+          "Expression": "吐魂.exp3"
+        }
+      ],
+      "生气": [
+        {},
+        {
+          "Name": "生气.exp3",
+          "Expression": "生气.exp3"
+        }
+      ],
+      "手势": [
+        {
+          "Name": "手势5.exp3",
+          "Expression": "手势5.exp3"
+        },
+        {
+          "Name": "手势4.exp3",
+          "Expression": "手势4.exp3"
+        },
+        {
+          "Name": "手势3.exp3",
+          "Expression": "手势3.exp3"
+        },
+        {
+          "Name": "手势2.exp3",
+          "Expression": "手势2.exp3"
+        },
+        {
+          "Name": "手势1.exp3",
+          "Expression": "手势1.exp3"
+        }
+      ],
+      "点击": [
+        {}
+      ]
+    },
+    "Expressions": [
+      {
+        "Name": "1.exp3",
+        "File": "1.exp3.json"
+      },
+      {
+        "Name": "前倾.exp3",
+        "File": "前倾.exp3.json"
+      },
+      {
+        "Name": "动画.motion3",
+        "File": "动画.motion3.json"
+      },
+      {
+        "Name": "单头.exp3",
+        "File": "单头.exp3.json"
+      },
+      {
+        "Name": "取消披肩.exp3",
+        "File": "取消披肩.exp3.json"
+      },
+      {
+        "Name": "取消纱裙.exp3",
+        "File": "取消纱裙.exp3.json"
+      },
+      {
+        "Name": "吐魂.exp3",
+        "File": "吐魂.exp3.json"
+      },
+      {
+        "Name": "哭哭哭.exp3",
+        "File": "哭哭哭.exp3.json"
+      },
+      {
+        "Name": "大小变.exp3",
+        "File": "大小变.exp3.json"
+      },
+      {
+        "Name": "害羞.exp3",
+        "File": "害羞.exp3.json"
+      },
+      {
+        "Name": "感叹号.exp3",
+        "File": "感叹号.exp3.json"
+      },
+      {
+        "Name": "手势1.exp3",
+        "File": "手势1.exp3.json"
+      },
+      {
+        "Name": "手势2.exp3",
+        "File": "手势2.exp3.json"
+      },
+      {
+        "Name": "手势3.exp3",
+        "File": "手势3.exp3.json"
+      },
+      {
+        "Name": "手势4.exp3",
+        "File": "手势4.exp3.json"
+      },
+      {
+        "Name": "手势5.exp3",
+        "File": "手势5.exp3.json"
+      },
+      {
+        "Name": "换肤色.exp3",
+        "File": "换肤色.exp3.json"
+      },
+      {
+        "Name": "摘帽子.exp3",
+        "File": "摘帽子.exp3.json"
+      },
+      {
+        "Name": "收兽耳.exp3",
+        "File": "收兽耳.exp3.json"
+      },
+      {
+        "Name": "收尾巴.exp3",
+        "File": "收尾巴.exp3.json"
+      },
+      {
+        "Name": "星星眼.exp3",
+        "File": "星星眼.exp3.json"
+      },
+      {
+        "Name": "晕.exp3",
+        "File": "晕.exp3.json"
+      },
+      {
+        "Name": "暹罗猫.cdi3",
+        "File": "暹罗猫.cdi3.json"
+      },
+      {
+        "Name": "暹罗猫.physics3",
+        "File": "暹罗猫.physics3.json"
+      },
+      {
+        "Name": "水印.exp3",
+        "File": "水印.exp3.json"
+      },
+      {
+        "Name": "生气.exp3",
+        "File": "生气.exp3.json"
+      },
+      {
+        "Name": "短发.exp3",
+        "File": "短发.exp3.json"
+      },
+      {
+        "Name": "问号.exp3",
+        "File": "问号.exp3.json"
+      },
+      {
+        "Name": "黑脸.exp3",
+        "File": "黑脸.exp3.json"
+      },
+      {
+        "File": "1.exp3.json"
+      },
+      {
+        "Name": "水印.exp3",
+        "File": "水印.exp3.json"
+      }
+    ],
+    "DisplayInfo": "暹罗猫.cdi3.json"
+  },
+  "Controllers": {
+    "ParamHit": {
+      "Enabled": true
+    },
+    "ParamLoop": {},
+    "KeyTrigger": {
+      "Items": [
+        {
+          "Input": 49,
+          "DownMtn": "动作:水印.exp3"
+        },
+        {
+          "Input": 50,
+          "DownMtn": "动作:大小变.exp3"
+        },
+        {
+          "Input": 52,
+          "DownMtn": "表情:取消披肩.exp3"
+        },
+        {
+          "Input": 51,
+          "DownMtn": "表情:取消纱裙.exp3"
+        },
+        {
+          "Input": 53,
+          "DownMtn": "肤色:换肤色.exp3"
+        },
+        {
+          "Input": 87,
+          "DownMtn": "生气:生气.exp3"
+        },
+        {
+          "Input": 9001,
+          "DownMtn": "吐魂:吐魂.exp3"
+        },
+        {
+          "Input": 54,
+          "DownMtn": "前倾-哭:哭哭哭.exp3"
+        },
+        {
+          "Input": 9000,
+          "DownMtn": "肤色:害羞.exp3"
+        }
+      ],
+      "Enabled": true
+    },
+    "ParamTrigger": {
+      "Enabled": true
+    },
+    "AreaTrigger": {
+      "Enabled": true
+    },
+    "HandTrigger": {},
+    "EyeBlink": {
+      "MinInterval": 500,
+      "MaxInterval": 6000,
+      "Items": [
+        {
+          "Id": "ParamEyeLOpen",
+          "Min": 0.0,
+          "Max": 1.0,
+          "BlendMode": 2,
+          "Input": 0
+        },
+        {
+          "Id": "ParamEyeLSmile",
+          "Min": 0.0,
+          "Max": 1.0,
+          "BlendMode": 2,
+          "Input": 0
+        },
+        {
+          "Id": "ParamEyeROpen",
+          "Min": 0.0,
+          "Max": 1.0,
+          "BlendMode": 2,
+          "Input": 0
+        }
+      ],
+      "Enabled": true
+    },
+    "LipSync": {
+      "Gain": 5.0
+    },
+    "MouseTracking": {
+      "SmoothTime": 0.268333673,
+      "Items": [
+        {
+          "Name": "ParamEyeBallX",
+          "Id": "ParamEyeBallX",
+          "Min": -1.0,
+          "Max": 1.0,
+          "DefaultValue": 0.0,
+          "BlendMode": 1,
+          "Input": 1
+        },
+        {
+          "Name": "ParamEyeBallY",
+          "Id": "ParamEyeBallY",
+          "Min": -1.0,
+          "Max": 1.0,
+          "DefaultValue": 0.0,
+          "BlendMode": 1,
+          "Axis": 1,
+          "Input": 2
+        },
+        {
+          "Name": "ParamAngleX3",
+          "Id": "ParamAngleX3",
+          "Min": -30.0,
+          "Max": 30.0,
+          "DefaultValue": 0.0,
+          "BlendMode": 1,
+          "Input": 1
+        },
+        {
+          "Name": "ParamAngleX4",
+          "Id": "ParamAngleX4",
+          "Min": -30.0,
+          "Max": 30.0,
+          "DefaultValue": 0.0,
+          "BlendMode": 1,
+          "Axis": 1,
+          "Input": 2
+        },
+        {
+          "Name": "ParamAngleX6",
+          "Id": "ParamAngleX6",
+          "Min": -30.0,
+          "Max": 30.0,
+          "DefaultValue": 0.0,
+          "BlendMode": 1,
+          "Axis": 2,
+          "Input": 2
+        }
+      ],
+      "Enabled": true
+    },
+    "AutoBreath": {
+      "Enabled": true
+    },
+    "ExtraMotion": {
+      "Enabled": true
+    },
+    "Accelerometer": {
+      "Enabled": true
+    },
+    "Microphone": {},
+    "Transform": {},
+    "FaceTracking": {},
+    "HandTracking": {},
+    "ParamValue": {
+      "Items": [
+        {
+          "Ids": [
+            "Param229"
+          ],
+          "Value": 1.0
+        }
+      ],
+      "Enabled": true
+    },
+    "PartOpacity": {
+      "Items": [
+        {
+          "Value": 100.0
+        }
+      ]
+    },
+    "ArtmeshOpacity": {},
+    "ArtmeshColor": {},
+    "ArtmeshCulling": {
+      "DefaultMode": 0
+    },
+    "IntimacySystem": {
+      "InitValue": 60,
+      "MaxValue": 100,
+      "BonusActive": 10,
+      "BonusLimit": 1,
+      "Enabled": true
+    },
+    "Battery": {}
+  },
+  "HitAreas": [
+    {
+      "Name": "ArtMesh141",
+      "Id": "ArtMesh141",
+      "Motion": "生气:生气.exp3",
+      "ExitMtn": "肤色:换肤色.exp3"
+    },
+    {}
+  ],
+  "Options": {
+    "TexType": 0
+  }
+}

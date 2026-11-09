@@ -1,0 +1,16 @@
+{
+    "Type": "Live2D Expression",
+    "IsModelCustomizationExpression": false,
+    "Parameters": [
+        {
+            "Id": "ParamBodyAngleX6",
+            "Value": -10.0,
+            "Blend": "Add"
+        },
+        {
+            "Id": "ParamBodyAngleX5",
+            "Value": 10.0,
+            "Blend": "Add"
+        }
+    ]
+}
