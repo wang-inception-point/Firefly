@@ -62,8 +62,17 @@ export const friendsConfig: FriendLink[] = [
 	{
 		title: "陈世勋",
 		imgurl: "/friends/chenshixun.jpg",
-		desc: "二次元大肘子",
+		desc: "众生皆为局中棋，人生犹如梦中戏！",
 		siteurl: "https://pomme-x.github.io/Pomme-project/",
+		tags: ["Framework"],
+		weight: 8,
+		enabled: true,
+	},
+	{
+		title: "王金帅",
+		imgurl: "/friends/wjs.jpg",
+		desc: "今夕守岸明观潮，三月期花六月花。",
+		siteurl: "https://xiyue-chao.com",
 		tags: ["Framework"],
 		weight: 8,
 		enabled: true,
