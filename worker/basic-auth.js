@@ -421,6 +421,9 @@ function adminShell(title, sub, bodyHtml, active = "visitors") {
   .msg{padding:11px 16px;border-radius:10px;margin:14px 0;font-size:14px}
   .msg.ok{background:rgba(63,185,80,.15);color:var(--glow);border:1px solid rgba(63,185,80,.4)}
   .msg.err{background:rgba(232,110,100,.15);color:#ff9b8a;border:1px solid rgba(232,110,100,.4)}
+  .hint{background:rgba(126,231,135,.06);border:1px solid rgba(126,231,135,.18);border-radius:10px;padding:12px 16px;margin-bottom:14px;color:var(--muted);font-size:13px;line-height:1.9}
+  .hint b{color:var(--glow)}
+  .hint code{background:rgba(0,0,0,.3);padding:2px 7px;border-radius:5px;color:var(--glow);font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
   .panel{border-radius:16px;background:var(--surface);border:1px solid var(--border);padding:22px;margin-top:18px}
   .back{color:var(--green);text-decoration:none;font-size:14px;padding:9px 18px;border:1px solid var(--border);border-radius:10px;display:inline-block}
   footer{margin-top:24px;color:var(--faint);font-size:12.5px}
@@ -512,6 +515,16 @@ function postsEditHtml(path, label, content, coverPath, err) {
         <div style="color:var(--faint);font-size:12.5px;margin-bottom:8px">更换封面（上传后会覆盖 ${coverPath.split("/").pop()}）</div>
         <input type="file" name="cover_file" accept="image/*" style="color:var(--muted);font-size:13px">
       </div>
+    </div>
+    <div class="hint">
+      <b>字段说明：</b>
+      <code>title</code> 文章大标题 ·
+      <code>published</code> 日期 ·
+      <code>description</code> 首页卡片显示的那段简介（角色文案改这里） ·
+      <code>tags</code> 标签 ·
+      <code>category</code> 分类 ·
+      <code>image</code> 封面路径（一般不用动） ·
+      <code>---</code> 以下是正文
     </div>
     <form method="POST" action="/__panel-x7k2/posts/save" enctype="multipart/form-data">
       <input type="hidden" name="path" value="${path}">
