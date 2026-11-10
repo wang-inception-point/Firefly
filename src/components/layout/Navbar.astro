@@ -227,6 +227,15 @@ const logoVariants = await Promise.all(
                         </button>
                 )}
                 {/* @ts-ignore */}
+                <button
+                    aria-label="切换天气"
+                    title="天气选择"
+                    class="btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90"
+                    id="weather-switch"
+                >
+                    <Icon name="material-symbols:partly-cloudy-day-outline" class="text-[1.25rem]"></Icon>
+                </button>
+                {/* @ts-ignore */}
                 <LightDarkSwitch client:load></LightDarkSwitch>
                 <button aria-label="Menu" aria-controls="nav-menu-panel" aria-expanded="false" name="Nav Menu" class="btn-plain scale-animation rounded-lg w-11 h-11 active:scale-90 lg:hidden!" id="nav-menu-switch">
                     <Icon name="material-symbols:menu-rounded" class="text-[1.25rem]"></Icon>
@@ -238,6 +247,14 @@ const logoVariants = await Promise.all(
                 <MusicPlayer />
             </div>
         )}
+        <div id="weather-panel" class="float-panel float-panel-closed absolute transition-all right-16 p-3 z-50 min-w-[140px]" data-floating-panel data-floating-panel-trigger="weather-switch" inert aria-hidden="true">
+            <div class="flex flex-col gap-1 text-sm">
+                <button class="weather-opt btn-plain rounded-lg px-3 py-2 text-left flex items-center gap-2" data-w="normal"><Icon name="material-symbols:partly-cloudy-day-outline" class="text-[1.1rem]" /> 默认</button>
+                <button class="weather-opt btn-plain rounded-lg px-3 py-2 text-left flex items-center gap-2" data-w="rain"><Icon name="material-symbols:rainy-outline" class="text-[1.1rem]" /> 雨天</button>
+                <button class="weather-opt btn-plain rounded-lg px-3 py-2 text-left flex items-center gap-2" data-w="sunny"><Icon name="material-symbols:wb-sunny-outline" class="text-[1.1rem]" /> 晴天</button>
+                <button class="weather-opt btn-plain rounded-lg px-3 py-2 text-left flex items-center gap-2" data-w="dusk"><Icon name="material-symbols:waterfall-chart-outline" class="text-[1.1rem]" /> 黄昏</button>
+            </div>
+        </div>
         {isDisplaySettingsEnabled && <DisplaySettings client:load></DisplaySettings>}
     </div>
 </div>
@@ -272,6 +289,26 @@ function loadButtonScript() {
                 musicPanel.classList.toggle("float-panel-closed");
             }
         };
+    }
+
+    // 天气切换按钮：点开小面板选天气
+    let weatherBtn = document.getElementById("weather-switch");
+    if (weatherBtn) {
+        weatherBtn.onclick = function () {
+            let panel = document.getElementById("weather-panel");
+            if (panel) panel.classList.toggle("float-panel-closed");
+        };
+        document.querySelectorAll(".weather-opt").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const w = (btn as HTMLElement).getAttribute("data-w");
+                if (w && (window as any).setWeather) {
+                    (window as any).setWeather(w);
+                    weatherBtn.setAttribute("title", (btn as HTMLElement).textContent?.trim() || "天气");
+                }
+                let panel = document.getElementById("weather-panel");
+                if (panel) panel.classList.add("float-panel-closed");
+            });
+        });
     }
 
     // 背景视频播放器控制按钮

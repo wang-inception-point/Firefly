@@ -1,0 +1,190 @@
+---
+// 天气特效：normal / rain / sunny / dusk
+// - rain：屏幕变暗 + 雨丝（中雨密度）
+// - sunny：提亮 + 茉莉花瓣飘落
+// - dusk：昏黄滤镜 + 樱花飘落
+// 通过 <html data-weather="..."> 驱动 CSS 滤镜，canvas 画粒子
+---
+
+<style>
+	/* 天气滤镜层：覆盖整屏的色罩，pointer-events:none */
+	#weather-overlay {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 1; /* 在视频(-1)之上，内容层(默认 z-index)之下 */
+		opacity: 0;
+		transition: opacity 0.6s ease;
+		mix-blend-mode: multiply;
+	}
+	html[data-weather="rain"] #weather-overlay {
+		opacity: 0.55;
+		background: linear-gradient(180deg, #2a3550 0%, #1a2238 100%);
+		mix-blend-mode: multiply;
+	}
+	html[data-weather="sunny"] #weather-overlay {
+		opacity: 0.18;
+		background: radial-gradient(ellipse at 50% 20%, #fff8d6 0%, transparent 60%);
+		mix-blend-mode: screen;
+	}
+	html[data-weather="dusk"] #weather-overlay {
+		opacity: 0.45;
+		background: linear-gradient(180deg, #ff9a56 0%, #c2410c 60%, #7c2d12 100%);
+		mix-blend-mode: multiply;
+	}
+	#weather-canvas {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 40; /* 盖在卡片上，低于导航栏 z-50 */
+	}
+	/* 雨天卡片玻璃上挂水珠的质感 */
+	html[data-weather="rain"] :is(.card, .float-panel, #navbar) {
+		box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 12px 24px -12px rgba(180,210,255,0.3) !important;
+	}
+</style>
+
+<div id="weather-overlay"></div>
+<canvas id="weather-canvas"></canvas>
+
+<script>
+	(function () {
+		if ((window as any).__weatherInit) return;
+		(window as any).__weatherInit = true;
+
+		const html = document.documentElement;
+		const overlay = document.getElementById("weather-overlay")!;
+		const canvas = document.getElementById("weather-canvas") as HTMLCanvasElement;
+		const ctx = canvas.getContext("2d")!;
+
+		type WeatherMode = "normal" | "rain" | "sunny" | "dusk";
+		let mode: WeatherMode =
+			(localStorage.getItem("weatherMode") as WeatherMode) || "normal";
+		let rafId: number | null = null;
+		let particles: any[] = [];
+
+		function resize() {
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+		}
+		resize();
+		window.addEventListener("resize", resize);
+
+		function applyMode(m: WeatherMode) {
+			mode = m;
+			html.setAttribute("data-weather", m);
+			localStorage.setItem("weatherMode", m);
+			stopLoop();
+			particles = [];
+			if (m === "rain") initRain();
+			else if (m === "sunny") initPetal("jasmine");
+			else if (m === "dusk") initPetal("sakura");
+		}
+
+		function stopLoop() {
+			if (rafId !== null) cancelAnimationFrame(rafId);
+			rafId = null;
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+		}
+
+		// ===== 雨丝 =====
+		function initRain() {
+			const count = 400; // 中雨偏密
+			particles = Array.from({ length: count }, () => ({
+				x: Math.random() * canvas.width,
+				y: Math.random() * canvas.height,
+				len: 18 + Math.random() * 25,
+				speed: 6 + Math.random() * 5,
+				opacity: 0.25 + Math.random() * 0.35,
+			}));
+			const tick = () => {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				ctx.strokeStyle = "rgba(174, 194, 224, 1)";
+				ctx.lineWidth = 1;
+				for (const p of particles) {
+					ctx.globalAlpha = p.opacity;
+					ctx.beginPath();
+					ctx.moveTo(p.x, p.y);
+					ctx.lineTo(p.x - 2, p.y + p.len);
+					ctx.stroke();
+					p.y += p.speed;
+					p.x -= 1;
+					if (p.y > canvas.height) {
+						p.y = -20;
+						p.x = Math.random() * (canvas.width + 100);
+					}
+				}
+				rafId = requestAnimationFrame(tick);
+			};
+			tick();
+		}
+
+		// ===== 花瓣（jasmine 白色椭圆 / sakura 粉色心形）=====
+		function initPetal(kind: "jasmine" | "sakura") {
+			const count = kind === "jasmine" ? 55 : 45;
+			particles = Array.from({ length: count }, () => ({
+				x: Math.random() * canvas.width,
+				y: Math.random() * canvas.height - canvas.height,
+				size: 4 + Math.random() * 5,
+				speedY: 1 + Math.random() * 1.5,
+				sway: Math.random() * Math.PI * 2,
+				swaySpeed: 0.01 + Math.random() * 0.02,
+				rot: Math.random() * Math.PI * 2,
+				rotSpeed: (Math.random() - 0.5) * 0.02,
+				color: kind === "jasmine" ? "rgba(255,255,240,0.85)" : "rgba(255,183,197,0.85)",
+			}));
+			const tick = () => {
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				for (const p of particles) {
+					p.sway += p.swaySpeed;
+					p.x += Math.sin(p.sway) * 1.2;
+					p.y += p.speedY;
+					p.rot += p.rotSpeed;
+					if (p.y > canvas.height + 20) {
+						p.y = -20;
+						p.x = Math.random() * canvas.width;
+					}
+					ctx.save();
+					ctx.translate(p.x, p.y);
+					ctx.rotate(p.rot);
+					ctx.fillStyle = p.color;
+					ctx.beginPath();
+					if (kind === "jasmine") {
+						// 五瓣小茉莉花：五个椭圆瓣围着中心
+						for (let i = 0; i < 5; i++) {
+							const a = (i / 5) * Math.PI * 2;
+							ctx.save();
+							ctx.rotate(a);
+							ctx.beginPath();
+							ctx.ellipse(0, -p.size * 0.6, p.size * 0.32, p.size * 0.55, 0, 0, Math.PI * 2);
+							ctx.fill();
+							ctx.restore();
+						}
+					} else {
+						// 樱花花瓣：小水滴形
+						ctx.moveTo(0, -p.size);
+						ctx.quadraticCurveTo(p.size, 0, 0, p.size);
+						ctx.quadraticCurveTo(-p.size, 0, 0, -p.size);
+					}
+					ctx.fill();
+					ctx.restore();
+				}
+				rafId = requestAnimationFrame(tick);
+			};
+			tick();
+		}
+
+		// 暴露给导航按钮
+		(window as any).setWeather = (m: WeatherMode) => applyMode(m);
+		(window as any).cycleWeather = () => {
+			const order: WeatherMode[] = ["normal", "rain", "sunny", "dusk"];
+			const next = order[(order.indexOf(mode) + 1) % order.length];
+			applyMode(next);
+			return next;
+		};
+		(window as any).getWeather = () => mode;
+
+		// 初始化
+		applyMode(mode);
+	})();
+</script>

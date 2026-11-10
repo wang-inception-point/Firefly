@@ -11,6 +11,7 @@ import MusicManager from "@components/features/MusicManager.astro";
 import MusicPlayerView from "@components/features/MusicPlayerView.astro";
 import SakuraEffect from "@components/features/SakuraEffect.astro";
 import WavesEffect from "@components/features/WavesEffect.astro";
+import WeatherEffect from "@components/features/WeatherEffect.astro";
 import ConfigCarrier from "@components/layout/ConfigCarrier.astro";
 import BrowserChrome from "@/components/layout/BrowserChrome.astro";
 
@@ -571,6 +572,9 @@ const ogImageAlt = propsOgImageAlt ?? pageTitle;
 
     <!-- Sakura Effect -->
     <SakuraEffect />
+
+    <!-- Weather Effect (rain/sunny/dusk) -->
+    <WeatherEffect />
 
     <!-- Water Waves Effect -->
     <WavesEffect />
