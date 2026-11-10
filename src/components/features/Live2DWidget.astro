@@ -165,6 +165,14 @@ const responsive = config.responsive || {};
 
 			app.stage.addChild(model);
 
+			// 隐藏模型自带的版权水印（Param229 默认 1=显示，置 0 隐藏）
+			try {
+				const core = model.internalModel.coreModel;
+				core.setParameterValueById("Param229", 0);
+			} catch (e) {
+				console.warn("[live2d] hide watermark failed:", e);
+			}
+
 			// 让模型适配画布并居中靠下
 			model.anchor.set(0.5, 0.5);
 			const scale = Math.min(
