@@ -269,12 +269,15 @@ const responsive = config.responsive || {};
 			} catch {}
 			model.internalModel.on("beforeModelUpdate", () => {
 				try {
-					core.setParameterValueById("Param229", 1);
+					core.setParameterValueById("Param229", 0);
 					core.setParameterValueById("ParamEyeBallX", look.x);
 					core.setParameterValueById("ParamEyeBallY", -look.y);
 					core.setParameterValueById("ParamAngleX3", look.x * 30);
 					core.setParameterValueById("ParamAngleX4", -look.y * 20);
-				} catch {}
+					core.setParameterValueById("ParamAngleX6", look.x * -5);
+					core.setParameterValueById("ParamBodyAngleX", look.x * 10);
+					core.setParameterValueById("ParamBodyAngleY", -look.y * 5);
+				} catch (e) { console.warn("[live2d] param set fail", e); }
 			});
 		})();
 	}
