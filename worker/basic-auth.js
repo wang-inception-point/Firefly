@@ -7,6 +7,15 @@ const FAIL_TTL = 600; // 失败锁定窗口 10 分钟
 const GEO_TIMEOUT = 3500; // 地理库查询超时 3.5 秒
 const DEFAULT_MAX_USERS = 10; // 注册人数上限默认值（KV 未配置时使用）
 const MAX_USERS_KEY = "config:max_users"; // KV 中人数上限的配置键
+const GH_REPO = "wang-inception-point/Firefly";
+const GH_BRANCH = "master";
+// 可在线编辑的四篇文章（路径相对仓库根）
+const EDITABLE_POSTS = [
+  { path: "src/content/posts/firefly.md", label: "沃雅妮莎 · 主题模板" },
+  { path: "src/content/posts/guide/index.md", label: "大黑塔 · 使用指南" },
+  { path: "src/content/posts/weekly-3.md", label: "清宵 · 11月周报" },
+  { path: "src/content/posts/code-examples.md", label: "刻律德菈 · 代码示例" },
+];
 
 // 省级行政区代码 → 中文（Cloudflare 原生头降级用）
 const PROVINCE_CODES = {
@@ -368,6 +377,120 @@ function formatTime(ts) {
   });
 }
 
+function navHtml(active) {
+  const items = [
+    { href: "/__panel-x7k2", label: "访客记录", key: "visitors" },
+    { href: "/__panel-x7k2/posts", label: "文章编辑", key: "posts" },
+  ];
+  return `<nav class="nav-tabs">${items.map((it) =>
+    `<a href="${it.href}" class="${it.key === active ? "active" : ""}">${it.label}</a>`
+  ).join("")}</nav>`;
+}
+
+function adminShell(title, sub, bodyHtml, active = "visitors") {
+  return `<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} · Firefly</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='8' fill='%237ee787'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0c120e;--surface:#131c17;--surface-2:#182420;--border:#26362c;
+    --glow:#7ee787;--green:#3fb950;--text:#e6f0e8;--muted:#9bb0a1;--faint:#6b7f73;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--text);font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,sans-serif;min-height:100vh;padding:30px 20px 48px;background:var(--bg)}
+  .wrap{max-width:980px;margin:0 auto}
+  header h1{font-family:"Noto Serif SC","Songti SC",serif;font-size:28px;font-weight:600;margin:0;letter-spacing:2px}
+  header .sub{color:var(--faint);font-size:13px;letter-spacing:1px;margin-top:6px}
+  .nav-tabs{display:flex;gap:8px;margin:22px 0 6px;flex-wrap:wrap}
+  .nav-tabs a{padding:9px 18px;border-radius:10px;font-size:14px;color:var(--muted);background:var(--surface);border:1px solid var(--border);text-decoration:none;letter-spacing:1px;transition:all .18s}
+  .nav-tabs a:hover{color:var(--glow);border-color:rgba(126,231,135,.4)}
+  .nav-tabs a.active{color:#08130b;background:var(--green);border-color:var(--green);font-weight:600}
+  .post-list{display:grid;gap:12px;margin-top:18px}
+  .post-item{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 22px;border-radius:14px;background:var(--surface);border:1px solid var(--border);text-decoration:none;color:var(--text);transition:all .18s}
+  .post-item:hover{border-color:var(--green);transform:translateY(-1px)}
+  .post-item .lbl{font-size:16px;font-weight:600}
+  .post-item .pth{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--faint);margin-top:5px}
+  .post-item .go{color:var(--green);font-size:14px}
+  textarea.md{width:100%;min-height:420px;padding:14px 16px;border-radius:12px;background:rgba(8,14,11,.85);border:1px solid var(--border);color:var(--text);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;line-height:1.6;outline:none;resize:vertical}
+  textarea.md:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(126,231,135,.14)}
+  .btn-save{padding:11px 26px;border:0;border-radius:10px;cursor:pointer;background:var(--green);color:#08130b;font-size:14px;font-weight:600;letter-spacing:1px}
+  .btn-save:hover{filter:brightness(1.08)}
+  .form-actions{display:flex;gap:12px;align-items:center;margin-top:16px}
+  .msg{padding:11px 16px;border-radius:10px;margin:14px 0;font-size:14px}
+  .msg.ok{background:rgba(63,185,80,.15);color:var(--glow);border:1px solid rgba(63,185,80,.4)}
+  .msg.err{background:rgba(232,110,100,.15);color:#ff9b8a;border:1px solid rgba(232,110,100,.4)}
+  .panel{border-radius:16px;background:var(--surface);border:1px solid var(--border);padding:22px;margin-top:18px}
+  .back{color:var(--green);text-decoration:none;font-size:14px;padding:9px 18px;border:1px solid var(--border);border-radius:10px;display:inline-block}
+  footer{margin-top:24px;color:var(--faint);font-size:12.5px}
+</style></head>
+<body><div class="wrap">
+  <header><h1>${title}</h1><div class="sub">${sub}</div></header>
+  ${navHtml(active)}
+  ${bodyHtml}
+  <footer>仅管理员可见 · 保存后 GitHub 自动触发 CF 重建（约 1 分钟生效）</footer>
+</div></body></html>`;
+}
+
+async function ghGetRaw(env, path) {
+  const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}`, {
+    headers: {
+      Authorization: `token ${env.GH_TOKEN}`,
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "firefly-admin",
+    },
+  });
+  if (!r.ok) throw new Error("GitHub GET " + r.status);
+  const j = await r.json();
+  return { content: atob(j.content.replace(/\n/g, "")), sha: j.sha };
+}
+
+async function ghPut(env, path, content, sha, message) {
+  const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${env.GH_TOKEN}`,
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "firefly-admin",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message,
+      branch: GH_BRANCH,
+      content: btoa(unescape(encodeURIComponent(content))),
+      sha,
+    }),
+  });
+  if (!r.ok) throw new Error("GitHub PUT " + r.status + " " + await r.text());
+  return await r.json();
+}
+
+function postsListHtml(msg, err) {
+  const items = EDITABLE_POSTS.map((p) => `
+    <a class="post-item" href="/__panel-x7k2/posts/edit?path=${encodeURIComponent(p.path)}">
+      <div><div class="lbl">${p.label}</div><div class="pth">${p.path}</div></div>
+      <div class="go">编辑 →</div>
+    </a>`).join("");
+  return `${msg ? `<div class="msg ok">${msg}</div>` : ""}${err ? `<div class="msg err">${err}</div>` : ""}
+  <div class="post-list">${items}</div>`;
+}
+
+function postsEditHtml(path, label, content, err) {
+  return `${err ? `<div class="msg err">${err}</div>` : ""}
+  <div class="panel">
+    <div style="margin-bottom:14px;color:var(--muted);font-size:14px">编辑：<b style="color:var(--glow)">${label}</b> <span style="color:var(--faint);font-family:monospace;font-size:12px">${path}</span></div>
+    <form method="POST" action="/__panel-x7k2/posts/save">
+      <input type="hidden" name="path" value="${path}">
+      <textarea class="md" name="content" spellcheck="false">${escapeHtml(content)}</textarea>
+      <div class="form-actions">
+        <button class="btn-save" type="submit">保存并发布</button>
+        <a class="back" href="/__panel-x7k2/posts">返回列表</a>
+      </div>
+    </form>
+  </div>`;
+}
+
 function adminHtml(rows, pageviews, maxUsers) {
   const trs = rows
     .map((r) => {
@@ -503,6 +626,41 @@ function adminHtml(rows, pageviews, maxUsers) {
   }
   .back:hover{border-color:var(--green);background:rgba(63,185,80,.14)}
   .note{color:var(--faint);font-size:12.5px}
+  .nav-tabs{display:flex;gap:8px;margin:22px 0 6px;flex-wrap:wrap}
+  .nav-tabs a{
+    padding:9px 18px;border-radius:10px;font-size:14px;color:var(--muted);
+    background:var(--surface);border:1px solid var(--border);text-decoration:none;
+    letter-spacing:1px;transition:all .18s;
+  }
+  .nav-tabs a:hover{color:var(--glow);border-color:rgba(126,231,135,.4)}
+  .nav-tabs a.active{color:#08130b;background:var(--green);border-color:var(--green);font-weight:600}
+  .post-list{display:grid;gap:12px;margin-top:18px}
+  .post-item{
+    display:flex;justify-content:space-between;align-items:center;gap:14px;
+    padding:18px 22px;border-radius:14px;background:var(--surface);
+    border:1px solid var(--border);text-decoration:none;color:var(--text);
+    transition:all .18s;
+  }
+  .post-item:hover{border-color:var(--green);transform:translateY(-1px)}
+  .post-item .lbl{font-size:16px;font-weight:600}
+  .post-item .pth{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--faint);margin-top:5px}
+  .post-item .go{color:var(--green);font-size:14px}
+  textarea.md{
+    width:100%;min-height:420px;padding:14px 16px;border-radius:12px;
+    background:rgba(8,14,11,.85);border:1px solid var(--border);color:var(--text);
+    font-family:ui-monospace,Menlo,Consolas,"Courier New",monospace;font-size:13.5px;
+    line-height:1.6;outline:none;resize:vertical;
+  }
+  textarea.md:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(126,231,135,.14)}
+  .btn-save{
+    padding:11px 26px;border:0;border-radius:10px;cursor:pointer;
+    background:var(--green);color:#08130b;font-size:14px;font-weight:600;letter-spacing:1px;
+  }
+  .btn-save:hover{filter:brightness(1.08)}
+  .form-actions{display:flex;gap:12px;align-items:center;margin-top:16px}
+  .msg{padding:11px 16px;border-radius:10px;margin:14px 0;font-size:14px}
+  .msg.ok{background:rgba(63,185,80,.15);color:var(--glow);border:1px solid rgba(63,185,80,.4)}
+  .msg.err{background:rgba(232,110,100,.15);color:#ff9b8a;border:1px solid rgba(232,110,100,.4)}
   @media (max-width:600px){
     body{padding:22px 14px 40px}h1{font-size:25px}
     .stats{gap:12px}.stat{padding:24px}.stat .num{font-size:46px}
@@ -515,6 +673,10 @@ function adminHtml(rows, pageviews, maxUsers) {
     <h1>管理面板<span class="dot"> · </span>萤火之夜</h1>
     <div class="sub">FIREFLY ADMIN · 访客记录</div>
   </header>
+  <nav class="nav-tabs">
+    <a href="/__panel-x7k2" class="active">访客记录</a>
+    <a href="/__panel-x7k2/posts">文章编辑</a>
+  </nav>
   <section class="stats">
     <div class="stat image-bg bg-1"><div><div class="num">${pageviews}</div><div class="label">总进站次数</div></div></div>
     <div class="stat image-bg bg-2"><div><div class="num">${rows.length}</div><div class="label">访客数</div></div></div>
@@ -758,6 +920,63 @@ export default {
       return new Response(registerHtml("", current, maxUsers), {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
+    }
+
+    // ---------- 文章编辑（GitHub 直推） ----------
+    if (url.pathname === "/__panel-x7k2/posts" ||
+        url.pathname === "/__panel-x7k2/posts/edit" ||
+        url.pathname === "/__panel-x7k2/posts/save") {
+      const session = await verifySession(env, request.headers.get("Cookie"));
+      if (!session || session.role !== "admin") {
+        return new Response(null, { status: 302, headers: { Location: "/__login" } });
+      }
+      if (!env.GH_TOKEN) {
+        return new Response(adminShell("文章编辑", "FIREFLY ADMIN · POSTS",
+          `<div class="msg err">未配置 GH_TOKEN 环境变量。请到 Cloudflare Worker → Settings → Variables 加一个 GH_TOKEN（GitHub Personal Access Token，repo 权限）。</div>`, "posts"),
+          { headers: { "Content-Type": "text/html; charset=utf-8" } });
+      }
+
+      // POST 保存
+      if (url.pathname === "/__panel-x7k2/posts/save" && request.method === "POST") {
+        let form;
+        try { form = await request.formData(); } catch { return new Response("Bad", { status: 400 }); }
+        const path = String(form.get("path") || "");
+        const content = String(form.get("content") || "");
+        const known = EDITABLE_POSTS.find((p) => p.path === path);
+        if (!known) return new Response("非法路径", { status: 400 });
+        try {
+          const { sha } = await ghGetRaw(env, path);
+          await ghPut(env, path, content, sha, `edit: ${known.label}`);
+          return new Response(null, { status: 303, headers: { Location: "/__panel-x7k2/posts?ok=1" } });
+        } catch (e) {
+          return new Response(adminShell("文章编辑", "FIREFLY ADMIN · POSTS",
+            postsListHtml("", "保存失败：" + (e.message || e)), "posts"),
+            { headers: { "Content-Type": "text/html; charset=utf-8" } });
+        }
+      }
+
+      // GET 编辑页
+      if (url.pathname === "/__panel-x7k2/posts/edit") {
+        const path = url.searchParams.get("path") || "";
+        const known = EDITABLE_POSTS.find((p) => p.path === path);
+        if (!known) return new Response("非法路径", { status: 400 });
+        try {
+          const { content } = await ghGetRaw(env, path);
+          return new Response(adminShell("编辑文章", "FIREFLY ADMIN · POSTS",
+            postsEditHtml(path, known.label, content), "posts"),
+            { headers: { "Content-Type": "text/html; charset=utf-8" } });
+        } catch (e) {
+          return new Response(adminShell("编辑文章", "FIREFLY ADMIN · POSTS",
+            postsListHtml("", "读取失败：" + (e.message || e)), "posts"),
+            { headers: { "Content-Type": "text/html; charset=utf-8" } });
+        }
+      }
+
+      // GET 列表
+      const ok = url.searchParams.get("ok") === "1";
+      return new Response(adminShell("文章编辑", "FIREFLY ADMIN · POSTS",
+        postsListHtml(ok ? "已保存，CF 正在重建（约 1 分钟生效）" : ""), "posts"),
+        { headers: { "Content-Type": "text/html; charset=utf-8" } });
     }
 
     // ---------- 管理面板 ----------
