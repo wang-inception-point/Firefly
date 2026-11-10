@@ -52,8 +52,10 @@ const responsive = config.responsive || {};
 	data-hide-mobile={(responsive.hideOnMobile === true).toString()}
 	data-breakpoint={(responsive.mobileBreakpoint || 768).toString()}
 >
+	<button id="l2d-close" title="关闭桌宠" aria-label="关闭桌宠">×</button>
 	<div id="l2d-stage"></div>
 </div>
+<button id="l2d-restore" title="显示桌宠" aria-label="显示桌宠">🐱</button>
 
 <style>
 	#l2d-widget-container {
@@ -78,6 +80,35 @@ const responsive = config.responsive || {};
 	}
 	#l2d-widget-container canvas {
 		display: block;
+	}
+	#l2d-close {
+		position: absolute;
+		top: 6px;
+		right: 10px;
+		z-index: 2;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		border: none;
+		background: rgba(0, 0, 0, 0.45);
+		color: #fff;
+		font-size: 18px;
+		line-height: 1;
+		cursor: pointer;
+	}
+	#l2d-restore {
+		position: fixed;
+		left: 12px;
+		bottom: 12px;
+		z-index: 9999;
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
+		border: none;
+		background: rgba(96, 165, 250, 0.9);
+		font-size: 22px;
+		cursor: pointer;
+		display: none;
 	}
 </style>
 
@@ -110,6 +141,30 @@ const responsive = config.responsive || {};
 		if (!path) {
 			console.warn("[live2d] no model path");
 			return;
+		}
+
+		// 关闭 / 恢复按钮（记住关闭状态）
+		const restoreBtn = document.getElementById("l2d-restore");
+		const closeBtn = document.getElementById("l2d-close");
+		if (localStorage.getItem("l2d-closed") === "1") {
+			container.style.display = "none";
+			if (restoreBtn) restoreBtn.style.display = "block";
+			return;
+		}
+		if (closeBtn) {
+			closeBtn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				container.style.display = "none";
+				localStorage.setItem("l2d-closed", "1");
+				if (restoreBtn) restoreBtn.style.display = "block";
+			});
+		}
+		if (restoreBtn) {
+			restoreBtn.addEventListener("click", () => {
+				container.style.display = "";
+				localStorage.removeItem("l2d-closed");
+				restoreBtn.style.display = "none";
+			});
 		}
 
 		(async () => {
