@@ -67,6 +67,23 @@ const tLoadError = i18n(I18nKey.videoLoadError);
 	(() => {
 		var urlList = JSON.parse(urls);
 		if (!urlList.length) return;
+
+		// 触屏设备（手机 / 平板）不播放背景视频：
+		// 国产手机浏览器（华为、小米、OPPO 等自带浏览器）检测到页面在自动播放铺满屏幕的
+		// <video> 后，会用自家内置播放器接管整个页面 —— 表现就是"只能看到视频、内容全没了、滑不动"。
+		// 这里在解析期就把播放器整块移除，连 src 都不给，浏览器没有可接管的目标；
+		// 背景回退到静态壁纸图（未设置 data-bg-video-playing，壁纸图 / 暗层 / 渐变都正常显示）。
+		var isTouchDevice =
+			typeof window.matchMedia === "function" &&
+			window.matchMedia("(pointer: coarse)").matches;
+		if (isTouchDevice) {
+			var playerRoot = document.getElementById("bg-player");
+			if (playerRoot && playerRoot.parentNode) {
+				playerRoot.parentNode.removeChild(playerRoot);
+			}
+			return;
+		}
+
 		var isMultiple = urlList.length > 1;
 
 		var overlay = document.getElementById("bg-player-overlay");
