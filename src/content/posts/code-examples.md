@@ -2,7 +2,7 @@
 title: Firefly 代码块示例
 published: 2026-11-04
 pinned: false
-description: 在Firefly中使用表达性代码的代码块在 Markdown 中的外观。
+description: "我以律法之名宣判：这段代码——满盘皆输。重构完毕之前，不许收工。"
 tags: [Markdown, Firefly]
 category: 文章示例
 image: ./images/cover4.jpg
