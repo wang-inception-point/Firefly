@@ -26,7 +26,7 @@ const tLoadError = i18n(I18nKey.videoLoadError);
 				id="bg-player-overlay"
 				class="absolute inset-0 z-15 overflow-hidden pointer-events-none transition-opacity duration-500 ease-in-out opacity-0"
 			>
-				<video id="bg-player-video" preload="auto" playsinline class="size-full object-cover"></video>
+				<video id="bg-player-video" preload="auto" playsinline loop muted class="size-full object-cover"></video>
 			</div>
 
 			<div id="bg-player-controls" class="absolute bottom-4 left-4 z-30 flex items-center gap-1.5 group">
@@ -123,7 +123,6 @@ const tLoadError = i18n(I18nKey.videoLoadError);
 			video.src = urlList[currentIndex];
 			video.muted = true;
 			video.play()
-				.then(function () { setTimeout(function () { if (video) video.muted = false; }, 100); })
 				.catch(function () { isPlaying = false; syncAttr(); });
 		}
 
@@ -211,6 +210,12 @@ const tLoadError = i18n(I18nKey.videoLoadError);
 				document.documentElement.removeAttribute("data-bg-video-playing");
 			}
 		}
+		// 自动开始播放（作为首页默认背景）
+		isPlaying = true;
+		syncAttr();
+		if (overlay) { overlay.classList.remove("opacity-0"); overlay.classList.add("opacity-100"); }
+		requestAnimationFrame(function () { doPlay(); });
+
 		document.addEventListener("astro:before-swap", cleanup);
 	})();
 </script>
