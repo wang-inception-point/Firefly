@@ -220,12 +220,12 @@ const responsive = config.responsive || {};
 
 			app.stage.addChild(model);
 
-			// 隐藏模型自带的版权水印（Param229 默认 1=显示，每帧强制置 0）
+			// 隐藏模型自带的版权水印：水印.exp3 把 Param229 +1 即隐藏（裸模型默认 0=显示）
 			try {
 				const core = model.internalModel.coreModel;
-				core.setParameterValueById("Param229", 0);
+				core.setParameterValueById("Param229", 1);
 				app.ticker.add(() => {
-					try { core.setParameterValueById("Param229", 0); } catch {}
+					try { core.setParameterValueById("Param229", 1); } catch {}
 				});
 			} catch (e) {
 				console.warn("[live2d] hide watermark failed:", e);
