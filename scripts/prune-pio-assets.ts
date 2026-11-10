@@ -6,7 +6,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { glob } from "glob";
-import { live2dWidgetConfig, spineModelConfig } from "../src/config";
+import { spineModelConfig } from "../src/config";
 import { resolveSiteRoot } from "./site-root";
 
 // Cloudflare Pages 上产物在 dist/client，本地在 dist，统一对准真实根目录
@@ -21,6 +21,9 @@ const SPINE_ASSETS = ["pio/models/spine", "pio/static"];
 // Live2DWidget.astro 的客户端脚本（内联了 l2d-widget，约 650 KiB）。
 // 组件没渲染时 Astro 仍会产出这个 chunk，且没有任何 HTML 引用它。
 const L2D_CHUNK_GLOB = "_astro/Live2DWidget.astro_astro_type_script*";
+
+// Live2D 桌宠已彻底移除（水印/跟随问题无法解决），永远按未启用处理
+const live2dEnabled = false;
 
 /** 递归统计文件或目录占用的字节数，路径不存在则返回 null */
 async function sizeOf(target: string): Promise<number | null> {
@@ -59,7 +62,6 @@ async function findLive2dChunks(): Promise<string[]> {
 }
 
 async function main() {
-	const live2dEnabled = live2dWidgetConfig.enable;
 	const spineEnabled = spineModelConfig.enable;
 
 	if (live2dEnabled && spineEnabled) {
