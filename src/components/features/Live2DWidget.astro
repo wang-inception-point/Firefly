@@ -267,7 +267,7 @@ const responsive = config.responsive || {};
 				const ids = core.getParameterIds ? core.getParameterIds() : [];
 				console.log("[live2d] params sample:", ids.filter((s: string) => /Eye|Angle|Body|Waist|Neck/i.test(s)).join(", "));
 			} catch {}
-			model.internalModel.on("afterUpdate", () => {
+			model.internalModel.on("beforeModelUpdate", () => {
 				try {
 					core.setParameterValueById("Param229", 1);
 					core.setParameterValueById("ParamEyeBallX", look.x);
