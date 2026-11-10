@@ -179,9 +179,9 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 壁纸透明度
 		opacity: 1,
 		// 背景模糊度
-		blur: 6,
+		blur: 10,
 		// 卡片透明度，0-1之间，值越小越透明
-		cardOpacity: 0.55,
+		cardOpacity: 0.35,
 	},
 	// 全屏壁纸模式特有配置
 	// 壁纸模糊度(blur)、卡片透明度(cardOpacity)、层级(zIndex) 复用上方 overlay 模式的配置；
