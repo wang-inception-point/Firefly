@@ -11,10 +11,10 @@ const GH_REPO = "wang-inception-point/Firefly";
 const GH_BRANCH = "master";
 // 可在线编辑的四篇文章（路径相对仓库根）
 const EDITABLE_POSTS = [
-  { path: "src/content/posts/firefly.md", label: "沃雅妮莎 · 主题模板" },
-  { path: "src/content/posts/guide/index.md", label: "大黑塔 · 使用指南" },
-  { path: "src/content/posts/weekly-3.md", label: "清宵 · 11月周报" },
-  { path: "src/content/posts/code-examples.md", label: "刻律德菈 · 代码示例" },
+  { path: "src/content/posts/firefly.md", label: "沃雅妮莎 · 主题模板", cover: "src/content/posts/images/cover1.jpg" },
+  { path: "src/content/posts/guide/index.md", label: "大黑塔 · 使用指南", cover: "src/content/posts/images/cover2.jpg" },
+  { path: "src/content/posts/weekly-3.md", label: "清宵 · 11月周报", cover: "src/content/posts/images/cover3.jpg" },
+  { path: "src/content/posts/code-examples.md", label: "刻律德菈 · 代码示例", cover: "src/content/posts/images/cover4.jpg" },
 ];
 
 // 省级行政区代码 → 中文（Cloudflare 原生头降级用）
@@ -443,10 +443,17 @@ async function ghGetRaw(env, path) {
   });
   if (!r.ok) throw new Error("GitHub GET " + r.status);
   const j = await r.json();
-  return { content: atob(j.content.replace(/\n/g, "")), sha: j.sha };
+  const bytes = Uint8Array.from(atob(j.content.replace(/\s/g, "")));
+  return { content: new TextDecoder("utf-8").decode(bytes), sha: j.sha };
 }
 
 async function ghPut(env, path, content, sha, message) {
+  const body = {
+    message,
+    branch: GH_BRANCH,
+    content: btoa(unescape(encodeURIComponent(content))),
+  };
+  if (sha) body.sha = sha;
   const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}`, {
     method: "PUT",
     headers: {
@@ -455,14 +462,30 @@ async function ghPut(env, path, content, sha, message) {
       "User-Agent": "firefly-admin",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      message,
-      branch: GH_BRANCH,
-      content: btoa(unescape(encodeURIComponent(content))),
-      sha,
-    }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error("GitHub PUT " + r.status + " " + await r.text());
+  return await r.json();
+}
+
+async function ghPutBinary(env, path, bytes, sha, message) {
+  const body = {
+    message,
+    branch: GH_BRANCH,
+    content: btoa(String.fromCharCode(...bytes)),
+  };
+  if (sha) body.sha = sha;
+  const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${env.GH_TOKEN}`,
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "firefly-admin",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error("GitHub IMG PUT " + r.status + " " + await r.text());
   return await r.json();
 }
 
@@ -476,11 +499,21 @@ function postsListHtml(msg, err) {
   <div class="post-list">${items}</div>`;
 }
 
-function postsEditHtml(path, label, content, err) {
+function postsEditHtml(path, label, content, coverPath, err) {
   return `${err ? `<div class="msg err">${err}</div>` : ""}
   <div class="panel">
     <div style="margin-bottom:14px;color:var(--muted);font-size:14px">编辑：<b style="color:var(--glow)">${label}</b> <span style="color:var(--faint);font-family:monospace;font-size:12px">${path}</span></div>
-    <form method="POST" action="/__panel-x7k2/posts/save">
+    <div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px">
+      <div>
+        <div style="color:var(--faint);font-size:12.5px;margin-bottom:8px">当前封面</div>
+        <img src="/${coverPath.replace(/^src\/content\/posts\//, "").replace(/^images\//, "")}" style="width:240px;border-radius:10px;border:1px solid var(--border);display:block" onerror="this.style.opacity=.3">
+      </div>
+      <div style="flex:1;min-width:220px">
+        <div style="color:var(--faint);font-size:12.5px;margin-bottom:8px">更换封面（上传后会覆盖 ${coverPath.split("/").pop()}）</div>
+        <input type="file" name="cover_file" accept="image/*" style="color:var(--muted);font-size:13px">
+      </div>
+    </div>
+    <form method="POST" action="/__panel-x7k2/posts/save" enctype="multipart/form-data">
       <input type="hidden" name="path" value="${path}">
       <textarea class="md" name="content" spellcheck="false">${escapeHtml(content)}</textarea>
       <div class="form-actions">
@@ -945,6 +978,16 @@ export default {
         const known = EDITABLE_POSTS.find((p) => p.path === path);
         if (!known) return new Response("非法路径", { status: 400 });
         try {
+          // 1. 若上传了新封面，先传图
+          const coverFile = form.get("cover_file");
+          if (coverFile && typeof coverFile === "object" && coverFile.size > 0) {
+            const buf = new Uint8Array(await coverFile.arrayBuffer());
+            // 取远程 cover 的 sha
+            let coverSha = null;
+            try { coverSha = (await ghGetRaw(env, known.cover)).sha; } catch {}
+            await ghPutBinary(env, known.cover, buf, coverSha, `chore: 替换封面 ${known.label}`);
+          }
+          // 2. 推 md
           const { sha } = await ghGetRaw(env, path);
           await ghPut(env, path, content, sha, `edit: ${known.label}`);
           return new Response(null, { status: 303, headers: { Location: "/__panel-x7k2/posts?ok=1" } });
@@ -963,7 +1006,7 @@ export default {
         try {
           const { content } = await ghGetRaw(env, path);
           return new Response(adminShell("编辑文章", "FIREFLY ADMIN · POSTS",
-            postsEditHtml(path, known.label, content), "posts"),
+            postsEditHtml(path, known.label, content, known.cover), "posts"),
             { headers: { "Content-Type": "text/html; charset=utf-8" } });
         } catch (e) {
           return new Response(adminShell("编辑文章", "FIREFLY ADMIN · POSTS",
