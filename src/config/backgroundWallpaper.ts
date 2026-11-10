@@ -2,9 +2,9 @@ import type { BackgroundWallpaperConfig } from "@/types/backgroundWallpaper";
 
 export const backgroundWallpaper: BackgroundWallpaperConfig = {
 	// 壁纸模式："banner" 横幅壁纸，"fullscreen" 全屏壁纸，"overlay" 覆盖透明，"none" 纯色背景无壁纸
-	mode: "banner",
+	mode: "fullscreen",
 	// 是否启用背景视频播放，配置后将在导航栏显示视频播放按钮
-	playerEnable: true,
+	playerEnable: false,
 	/**
 	 * 背景图片配置
 	 * 图片路径支持三种格式：
@@ -56,7 +56,7 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 支持单个视频路径（字符串）或多个视频循环（数组，参考上面壁纸配置）
 		// 支持远程视频URL，本地视频请放在 public/assets/videos/ 目录下
 		// playerUrl: "/assets/videos/firefly.mp4",
-		playerUrl: "https://bed.twoleaf.cn/file/1785658612716_firefly.mp4",
+		playerUrl: "/home-bg.webm",
 	},
 	// 横幅壁纸和全屏壁纸共享配置
 	common: {
@@ -136,9 +136,9 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		waves: {
 			enable: {
 				// 桌面端是否启用水波纹动画效果
-				desktop: true,
+				desktop: false,
 				// 移动端是否启用水波纹动画效果
-				mobile: true,
+				mobile: false,
 			},
 		},
 		// 渐变过渡效果配置，当水波纹关闭时自动启用，提供壁纸底部到背景色的平滑过渡
@@ -177,11 +177,11 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 层级，确保壁纸在背景层
 		zIndex: -1,
 		// 壁纸透明度
-		opacity: 0.8,
+		opacity: 1,
 		// 背景模糊度
-		blur: 10,
+		blur: 6,
 		// 卡片透明度，0-1之间，值越小越透明
-		cardOpacity: 0.6,
+		cardOpacity: 0.55,
 	},
 	// 全屏壁纸模式特有配置
 	// 壁纸模糊度(blur)、卡片透明度(cardOpacity)、层级(zIndex) 复用上方 overlay 模式的配置；
