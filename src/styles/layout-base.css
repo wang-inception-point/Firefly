@@ -100,6 +100,14 @@
     --content-top: 100vh;
   }
 
+  /* fullscreen 首页 hero 移动端：壁纸不再独占整屏，内容从 65vh 处开始露头。
+     手机上一屏全是壁纸时用户会以为"页面只有背景、没有内容"，露一点文章卡片可给出下滑暗示 */
+  @media (max-width: 767px) {
+    html[data-wallpaper-mode="fullscreen"] body.is-home .content-panel {
+      --content-top: 65vh;
+    }
+  }
+
   /* banner wrapper：统一顶到顶部、高 65vh（不再用 -30vh/translateY 抵消；短屏高度由 layout-styles 媒体查询覆盖） */
   html[data-wallpaper-mode="banner"] #wallpaper-wrapper {
     position: absolute;
