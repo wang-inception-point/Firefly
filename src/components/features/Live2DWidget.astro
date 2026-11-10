@@ -255,15 +255,20 @@ const responsive = config.responsive || {};
 				dragging = false;
 			});
 
-			// 鼠标跟踪：眼睛 + 头/身体一起跟着鼠标（这模型头身参数是自定义的 ParamAngleX3/X4）
+			// 鼠标跟踪：眼睛 + 头/身体跟着鼠标（在模型 update 之后写参数，避免被覆盖）
 			const look = { x: 0, y: 0 };
 			window.addEventListener("pointermove", (e) => {
-				look.x = (e.clientX / window.innerWidth) * 2 - 1;  // -1 左 .. 1 右
-				look.y = (e.clientY / window.innerHeight) * 2 - 1; // -1 上 .. 1 下
+				look.x = (e.clientX / window.innerWidth) * 2 - 1;
+				look.y = (e.clientY / window.innerHeight) * 2 - 1;
 			});
-			app.ticker.add(() => {
+			const core = model.internalModel.coreModel;
+			// 打印一下实际参数 ID，方便核对
+			try {
+				const ids = core.getParameterIds ? core.getParameterIds() : [];
+				console.log("[live2d] params sample:", ids.filter((s: string) => /Eye|Angle|Body|Waist|Neck/i.test(s)).join(", "));
+			} catch {}
+			model.internalModel.on("afterUpdate", () => {
 				try {
-					const core = model.internalModel.coreModel;
 					core.setParameterValueById("Param229", 1);
 					core.setParameterValueById("ParamEyeBallX", look.x);
 					core.setParameterValueById("ParamEyeBallY", -look.y);
