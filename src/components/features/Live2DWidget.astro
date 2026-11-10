@@ -134,10 +134,10 @@ const responsive = config.responsive || {};
 
 			// @ts-ignore
 			const PIXI = (window as any).PIXI;
-			// @ts-ignore
-			const Live2D = (window as any).Live2D;
-			if (!PIXI || !Live2D || !Live2D.Live2DModel) {
-				console.error("[live2d] pixi/live2d lib missing");
+			// pixi-live2d-display 把 Live2DModel 挂在 PIXI.live2d 下
+			const Live2DModel = PIXI && PIXI.live2d && PIXI.live2d.Live2DModel;
+			if (!PIXI || !Live2DModel) {
+				console.error("[live2d] pixi/live2d lib missing", { PIXI: !!PIXI, live2d: !!(PIXI && PIXI.live2d) });
 				container.style.display = "none";
 				return;
 			}
@@ -156,7 +156,7 @@ const responsive = config.responsive || {};
 
 			let model: any;
 			try {
-				model = await Live2D.Live2DModel.from(path, { autoInteract: false });
+				model = await Live2DModel.from(path, { autoInteract: false });
 			} catch (e) {
 				console.error("[live2d] model load failed:", e);
 				container.style.display = "none";
