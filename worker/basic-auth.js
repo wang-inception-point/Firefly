@@ -413,7 +413,7 @@ function adminShell(title, sub, bodyHtml, active = "visitors") {
   .post-item .lbl{font-size:16px;font-weight:600}
   .post-item .pth{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--faint);margin-top:5px}
   .post-item .go{color:var(--green);font-size:14px}
-  textarea.md{width:100%;min-height:420px;padding:14px 16px;border-radius:12px;background:rgba(8,14,11,.85);border:1px solid var(--border);color:var(--text);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13.5px;line-height:1.6;outline:none;resize:vertical}
+  textarea.md{width:100%;min-height:420px;padding:14px 16px;border-radius:12px;background:rgba(8,14,11,.85);border:1px solid var(--border);color:var(--text);font-family:ui-monospace,Menlo,Consolas,"Microsoft YaHei","PingFang SC",monospace;font-size:13.5px;line-height:1.6;outline:none;resize:vertical}
   textarea.md:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(127,212,232,.14)}
   .btn-save{padding:11px 26px;border:0;border-radius:10px;cursor:pointer;background:var(--green);color:#08130b;font-size:14px;font-weight:600;letter-spacing:1px}
   .btn-save:hover{filter:brightness(1.08)}
@@ -694,7 +694,7 @@ function adminHtml(rows, pageviews, maxUsers) {
   textarea.md{
     width:100%;min-height:420px;padding:14px 16px;border-radius:12px;
     background:rgba(8,14,11,.85);border:1px solid var(--border);color:var(--text);
-    font-family:ui-monospace,Menlo,Consolas,"Courier New",monospace;font-size:13.5px;
+    font-family:ui-monospace,Menlo,Consolas,"Microsoft YaHei","PingFang SC",monospace;font-size:13.5px;
     line-height:1.6;outline:none;resize:vertical;
   }
   textarea.md:focus{border-color:var(--glow);box-shadow:0 0 0 3px rgba(127,212,232,.14)}
