@@ -122,9 +122,9 @@ const responsive = config.responsive || {};
 				await loadScript(
 					"https://fastly.jsdelivr.net/npm/pixi.js@6.5.10/dist/browser/pixi.min.js"
 				);
-				// 3) pixi-live2d-display
+				// 3) pixi-live2d-display（cubism4 构建，支持 moc3/Cubism5）
 				await loadScript(
-					"https://fastly.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/index.min.js"
+					"https://fastly.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"
 				);
 			} catch (e) {
 				console.error("[live2d] runtime load failed:", e);
