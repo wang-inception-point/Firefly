@@ -806,35 +806,6 @@ export default {
       });
     }
 
-    // ---------- Live2D 模型文件（KV 私有存储，仅登录用户可访问） ----------
-    if (url.pathname.startsWith("/pio/models/live2d/siam_cat/")) {
-      const session = await verifySession(env, request.headers.get("Cookie"));
-      if (!session) {
-        return new Response("Forbidden", { status: 403 });
-      }
-      const relPath = decodeURIComponent(
-        url.pathname.replace("/pio/models/live2d/siam_cat/", ""),
-      );
-      const key = "live2d:siam_cat/" + relPath;
-      const buf = await env.FF_DATA.get(key, "arrayBuffer");
-      if (!buf) {
-        return new Response("Not Found", { status: 404 });
-      }
-      const ext = relPath.split(".").pop().toLowerCase();
-      const mime =
-        {
-          json: "application/json; charset=utf-8",
-          png: "image/png",
-          moc3: "application/octet-stream",
-        }[ext] || "application/octet-stream";
-      return new Response(buf, {
-        headers: {
-          "Content-Type": mime,
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
-    }
-
     // ---------- 其余请求 ----------
     const session = await verifySession(env, request.headers.get("Cookie"));
     if (!session) {

@@ -1,6 +1,4 @@
 ---
-import Live2DWidget from "@components/features/Live2DWidget.astro";
-
 import SpineModel from "@components/features/SpineModel.astro";
 import Footer from "@components/layout/Footer.astro";
 import HeaderTopRow from "@components/layout/HeaderTopRow.astro";
@@ -12,7 +10,6 @@ import CategoryBar from "@/components/layout/CategoryBar.astro";
 import SidebarColumn from "@/components/layout/SidebarColumn.astro";
 import WallpaperSection from "@/components/layout/WallpaperSection.astro";
 import {
-	live2dWidgetConfig,
 	navbarMode,
 	sidebarLayoutConfig,
 	siteConfig,
@@ -164,7 +161,6 @@ const {
         </div>
 
         <SpineModel></SpineModel>
-        {live2dWidgetConfig.enable && <Live2DWidget config={live2dWidgetConfig} />}
 
         {/* 页脚宽度跨「侧栏 + 内容栏」，故在 #content-column 之外；又在 Swup 容器之外，
             切页不重渲染 */}
