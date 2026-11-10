@@ -266,13 +266,11 @@ const responsive = config.responsive || {};
 				dragging = false;
 			});
 
-			// 鼠标跟踪：模型视线跟随鼠标
+			// 鼠标跟踪：模型视线跟随鼠标（focus 需要画布坐标）
 			window.addEventListener("pointermove", (e) => {
 				try {
 					const rect = app.view.getBoundingClientRect();
-					const cx = rect.left + rect.width / 2;
-					const cy = rect.top + rect.height / 2;
-					model.focus(e.clientX - cx, e.clientY - cy);
+					model.focus(e.clientX - rect.left, e.clientY - rect.top);
 				} catch {}
 			});
 		})();
