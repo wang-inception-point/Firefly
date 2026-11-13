@@ -91,7 +91,7 @@ image: ./images/cover3.jpg
 
 
 
-### <font color="red">8.综上
+### <font color="red">8.综上</font>
 ```
 $sql = "select username,password from user where 
 username !='flag' and id = '".$_GET['id']."' limit 1;";
@@ -105,7 +105,6 @@ where (username !='flag' and id='1')   OR   (username='flag')
 最后构造成的payload：1' or username=flag %23
 要用#(也就是%23注释掉)' limit 1;"
 否则多出来的 `'` 让引号不配对 → **SQL 语法错误**，整个查询失败。
-</font>
 ![alt text](./images/weekly/image-4.png)
 
 ---
@@ -1280,8 +1279,7 @@ include($file):执行我们写入的文件，在GET中也就是file=后面的值
 ![alt text](./images/weekly/image-38.png)
 #### 5.原理解析:
 
-##### 1.<font color="red">浏览器内置php解析器，浏览器不会将执行的php代码呈现在页面上，但用解码器将其破坏使之不再被当成php文件执行就能呈现在页面上了
-</font>
+##### 1.<font color="red">浏览器内置php解析器，浏览器不会将执行的php代码呈现在页面上，但用解码器将其破坏使之不再被当成php文件执行就能呈现在页面上了</font>
 2.flag 常常藏在 `.php` 文件的源码里（比如 `$flag="..."` 是赋值，不会输出）。直接包含只能 "执行" 看不到赋值；用 base64 过滤器**把源码变成文本套出来**，就能看到那个赋值语句里的 flag 了。
 
 ---
@@ -1430,9 +1428,7 @@ operation failed ：操作失败(allow_url_include关闭了)
 </font>
 
 ### 4.我的思路
-#### <font color="red">
-普通的传参方式到file里面让系统去执行已经不行了，所以将系统命令执行直接放到系统日志里或许会有奇效。
-</font>
+**<font color="red">普通的传参方式到file里面让系统去执行已经不行了，所以将系统命令执行直接放到系统日志里或许会有奇效。</font>**
 <font color="blue">
 Linux高频默认目录(<font color="red">目录不是绝对，可以修改</font>)
 路径	用途
@@ -1582,7 +1578,7 @@ include($_GET['file']);
 ### 3.我自己理解的原理简介
 #### 1.我们可以通过在本地构建一个html网页上面那有提交功能，提交的地址指定为我们的靶机，这样html里面包含的数据就传过去了
 #### 2.浏览器php解析器工作原理(bug)
-##### <font color="red">当 PHP 检测到一个 multipart 
+##### <font color="red">当 PHP 检测到一个 multipart</font>
 **(1. 用 multipart 发一个带文件字段的 POST
 2. PHP 一看是 "文件上传"，并且发现请求里有 `PHP_SESSION_UPLOAD_PROGRESS` 字段
 3. 就自动把进度数据（含你的代码）写进 session 文件
@@ -1594,7 +1590,7 @@ include($_GET['file']);
 - 3.重点.这个字段的值php是照单全收的，就如同UA里面输入，
 原本这个字段是用来给本次上传 "起个标识名"，正常可能填 `upload123` 之类。
 
-但 **PHP 不检查这个值的内容，照单全收写进 session**。于是我们把它从普通名字换成 PHP 代码：</font>
+但 **PHP 不检查这个值的内容，照单全收写进 session**。于是我们把它从普通名字换成 PHP 代码：
 ```php
 <?=system('base64/var/www/html/fl0g.ph?');?>
 ```
