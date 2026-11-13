@@ -9,6 +9,19 @@ seriesOrder: 1
 tags: [周报]
 image: ./images/cover3.jpg
 ---
+<!-- 章节导航条：放在文章最开头，方便在 VS Code 预览和站内快速跳章。
+     注：主题的文章卡片（#post-container.card-base）带 overflow:hidden，站内无法真正吸顶；
+     VS Code 的 Markdown 预览里 sticky 生效，站内则固定显示在文章开头。 -->
+<div style="position:sticky;top:0;z-index:30;display:flex;flex-wrap:nowrap;gap:0.5rem;align-items:center;overflow-x:auto;padding:0.55rem 0.6rem;margin:0 0 1.25rem;background:color-mix(in srgb, Canvas 86%, transparent);border:1px solid color-mix(in srgb, CanvasText 16%, transparent);border-radius:0.75rem;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:0.85rem;line-height:1;">
+<span style="flex:none;font-weight:700;color:CanvasText;opacity:0.7;padding:0 0.25rem;">章节导航</span>
+<a href="#本周总结" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">本周总结</a>
+<a href="#一ctfshow-sql" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">一.CTFshow SQL</a>
+<a href="#二ctf" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">二.ctf+</a>
+<a href="#三geek" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">三.Geek</a>
+<a href="#四ctfshow" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">四.CTFshow</a>
+<a href="#week4" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">WEEK4</a>
+</div>
+
 
 ## 本周总结
 
@@ -18,57 +31,35 @@ image: ./images/cover3.jpg
 ***
 ## 目录
 
-
-* [一.CTFshow SQL](#一ctfshow-sql)
-  
-  * [171题](#171题)
-  * [172题](#172题)
-  * [173题](#173题)
-  
-* [二.ctf+](#二ctf)
-  * [第 1 题 Web RCE 命令执行 终端特殊字符](#第-1-题-web-rce-命令执行-终端特殊字符)
-  * [第 2 题 Web RCE PHP 代码执行函数](#第-2-题-web-rce-php-代码执行函数)
-  * [第 3 题 Web RCE 7 字符限制命令执行](#第-3-题-web-rce-7-字符限制命令执行)
-  * [第 4 题.Web-基础 Token 验证 Base64](#第-4-题-web-基础-token-验证（Base64）)
-  * [第 5 题 Web 反序列化 PHP 反序列化](#第-5-题-web-反序列化-php-反序列化)
-  
-* [三.Geek](#三geek)
-  * [一.保卫玉米](#一保卫玉米)
-  * [二.ezphp](#二ezphp文件写入漏洞)
-  * [三.术之尽头](#三-术之尽头)
-  * [四.丹特丽安の書架藏书检索](#四-丹特丽安の書架藏书检索)
-  * [五.ezpop.](#五-ezpop)
-*
-*
-*
-*
-*
-*
-*
-*
-*
-*
-*
-*
-*
-
-*
-*
-*
-*
-*
-*
-*
-
-
-
-
-
-
-
-
-
-
+- [本周总结](#本周总结)
+- [一.CTFshow SQL](#一ctfshow-sql)
+  - [171 题](#171题)
+  - [172 题](#172题)
+  - [173 题](#173题)
+- [二.ctf+](#二ctf)
+  - [第 1 题 Web RCE 命令执行 终端特殊字符](#第-1-题-web-rce-命令执行-终端特殊字符)
+  - [第 2 题 Web RCE PHP 代码执行函数](#第-2-题-web-rce-php-代码执行函数)
+  - [第 3 题 Web RCE 7 字符限制命令执行](#第-3-题-web-rce-7-字符限制命令执行)
+  - [第 4 题 Web 基础 Token 验证 Base64](#第-4-题-web-基础-token-验证-base64)
+  - [第 5 题 Web 反序列化 PHP 反序列化](#第-5-题-web-反序列化-php-反序列化)
+- [三.Geek](#三geek)
+  - [一.保卫玉米](#一保卫玉米)
+  - [二.ezphp（文件写入漏洞）](#二ezphp文件写入漏洞)
+  - [三.术之尽头](#三-术之尽头)
+  - [四.丹特丽安の書架（藏书检索）](#四-丹特丽安の書架藏书检索)
+  - [五.ezpop](#五-ezpop)
+- [四.CTFshow](#四ctfshow)
+  - [文件包含漏洞](#文件包含漏洞)
+  - [PHP 伪协议（Wrapper）学习笔记](#php-伪协议wrapper学习笔记)
+  - [78 题](#78题)
+  - [79 题](#79题)
+  - [80 题](#80题)
+  - [81 题](#81题)
+  - [82 题（条件竞争文件包含）](#82题条件竞争文件包含)
+  - [Geek · ezupload](#geek)
+- [WEEK4](#week4)
+  - [ez_phar](#ez_phar)
+  - [大蒜哥](#大蒜哥)
 
 ---
 #  一.CTFshow SQL 
@@ -1181,8 +1172,8 @@ RCE:SYC{18380c2d-491b-4992-bd2d-0c11b041f291}
 ---
 # 四.CTFshow
 ## 文件包含漏洞
-### <font color="red">文件包含会用到php伪协议相关知识，我在此做一个补充
-</font>
+### <font color="red">文件包含会用到php伪协议相关知识，我在此做一个补充</font>
+
 # PHP 伪协议（Wrapper）学习笔记
 
 > 伪协议：PHP 提供的特殊"资源访问路径"，常用于文件包含、读文件、反序列化等漏洞利用。
