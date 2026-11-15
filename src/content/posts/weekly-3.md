@@ -2842,3 +2842,77 @@ strpos(被搜索的字符串, 要找的内容)
 
 ![alt text](image-62.png)
 
+## 95（简单题）
+### 1.源码
+![alt text](image-63.png)
+### 2.解析
+```php
+if(preg_match("/[a-z]|\./i", $num))
+``` 
+##### 1.中\.将“.”过滤了
+```php
+if($num==4476){
+        die("no no no!");
+```
+##### 2.中“==”
+<font color="red">PHP 7 的 `==` 比 PHP 8 宽松得多。只要字符串**以数字开头**（`"4476.0"`、`"4476/0"`、`"4476abc"` 都算），它就会把开头那串数字当成 4476，判定相等，然后 die。</font>
+
+### 3.解答
+#### 方向
+
+1.`intval($num, 0)` 的 `0` 表示 “自动判断进制”：看到 `0x` 走十六进制，看到 `0` 走八进制。
+
+2.所以只要让字符串**仍然长成 `0 开头的样子`，但第一个字符不是 0** 就行。“第一个字符换成 intval 会忽略掉、但 strpos 不算位置 0 的东西。”
+<font color="red">可以换成“+”也就是%2B</font>
+![alt text](image-64.png)
+
+## 96
+### 1.源码
+![alt text](image-66.png)
+`highlight_file()` 会把文件当 PHP 源码**高亮显示**而不是执行；但 flag.php 里的 flag 往往写在注释或变量里，直接高亮有时看不清，所以用 base64 编码把原始字节吐出来。
+### 2.用php伪协议+base64编码读出
+?u=php://filter/read=convert.base64-encode/resource=flag.php
+![alt text](image-65.png)
+
+## 97
+### 1.源码
+![alt text](image-67.png)
+##### 1.看到POST请求先用bp抓包
+![alt text](image-68.png)
+### 2.分析
+```php
+if ($_POST['a'] != $_POST['b'])
+if (md5($_POST['a']) === md5($_POST['b']))
+```
+##### <font color="red">1.意思是输入的两个字符a!=b,但是经过md5压缩成一个固定 **32 位十六进制**的串后a=b;</font>
+1.**弱类型比较 `==`（魔法哈希）**
+有些 MD5 值以 `0e` 开头，后面全是数字，PHP 会把它当成科学计数法 `0`，于是两个不同的 `0e...` 串用 `==` 比较时被判为相等：
+2.** 强类型比较 `===`（数组绕过）**
+MD5 函数接收到数组时会报错并返回 `null`，两个 `null === null` 成立：
+### 3.解答
+修改请求为POST，然后补上请求头，利用数组绕过求解
+在上面已学,再解析一下怎么变换而来（a[]=1）
+```
+a[]  =  1
+ │      └─ 值（value）："1"
+ └──────── 键（key）："a[]"
+`[]` 不是 URL 编码的一部分，而是 **PHP 表单约定的数组语法**：浏览器 / 客户端把带 `[]` 的键名按这种格式编码进 Body，PHP 解析时识别到 `[]`，就把对应参数注册成数组
+$_POST['a'] = [1]
+；没有 `[]` 的键名，就注册成普通字符串。
+
+```
+![alt text](image-69.png)
+### 4.结
+##### HTTP POST 请求报文 = 4 个部分
+
+```
+POST / HTTP/1.1                          ← ① 请求行
+Host: 30806c94-...challenge.ctf.show    ← ② 请求头
+Content-Type: application/x-www-form-urlencoded ← ② 请求头
+Content-Length: 11
+User-Agent: Mozilla/5.0 ...
+Accept: text/html,...
+Cookie: ...
+                                         ← ③ 一个空行（头和体的分隔）
+a[]=1&b[]=2                              ← ④ 请求体 Body
+```
