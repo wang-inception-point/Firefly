@@ -238,6 +238,12 @@ html {
         @apply rounded-(--radius-large) overflow-hidden bg-(--card-bg-transparent) transition-colors duration-150;
     }
 
+    /* 周报系列卡片：壁纸透明模式下也保持完全不透明，长文阅读不透出背景 */
+    #post-container.post-solid-card {
+        background-color: var(--card-bg) !important;
+        --card-bg-transparent: var(--card-bg);
+    }
+
     /* LQIP 占位渐变 */
     .lqip-placeholder {
         z-index: 0;

@@ -248,7 +248,9 @@ const seriesData = await getSeriesPosts(entry);
       id="post-container"
       class:list={[
         "card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full ",
-        {},
+        {
+          "post-solid-card": (entry.data.series ?? "").trim() === "周报",
+        },
       ]}
     >
       {
