@@ -3197,7 +3197,7 @@ filename="../.user.ini"        ← 路径穿越，靠后端没过滤../
 
 ---
 
-##### 2.假如成功<font color="red">
+##### 2.<font color="red">假如成功</font>
 为什么url访问目标是 `index.php`，而不是 `shell.png`
 
 **因为 `.user.ini` 的作用是 “给 PHP 加默认前置文件”，它需要被一个 PHP 请求读取。且服务器只认index.php这一个php文件故需用他当触发器**
